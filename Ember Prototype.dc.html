@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#faf5ec}
+@keyframes emberSpin{to{transform:rotate(360deg)}}
+@keyframes emberFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+input::placeholder,textarea::placeholder{color:rgba(36,26,18,0.4)}
+input:focus,textarea:focus{outline:2px solid #e8a13c}
+image-slot{display:block;width:100%;height:100%}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#faf5ec;color:#241a12;font-family:'Archivo',sans-serif">
+
+<!-- ================= NAV ================= -->
+<div data-screen-label="Navigation" style="position:sticky;top:0;z-index:50;background:rgba(250,245,236,0.95);backdrop-filter:blur(8px);border-bottom:1px solid rgba(36,26,18,0.12)">
+<div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:14px 28px;gap:16px">
+  <div style="font-weight:900;font-size:21px;letter-spacing:-0.5px;cursor:pointer" onClick="{{ goDiscover }}">EMBER<span style="color:#c4552d">.</span></div>
+  <div style="display:flex;gap:6px;font-size:13.5px;font-weight:600;flex-wrap:wrap">
+    <button style="{{ navDiscoverStyle }}" onClick="{{ goDiscover }}">Discover</button>
+    <button style="{{ navCreateStyle }}" onClick="{{ goCreate }}">✦ Create</button>
+    <button style="{{ navDailyStyle }}" onClick="{{ goDaily }}">Daily</button>
+    <button style="{{ navCookbookStyle }}" onClick="{{ goCookbook }}">Cookbook <span style="font-size:11px;background:rgba(36,26,18,0.12);border-radius:999px;padding:1px 7px;margin-left:2px">{{ savedCount }}</span></button>
+  </div>
+  <div onClick="{{ goProfile }}" title="Profile &amp; preferences" style="{{ avatarStyle }}">{{ profileInitial }}</div>
+</div>
+</div>
+
+<!-- ================= DISCOVER ================= -->
+<sc-if value="{{ isDiscover }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Discover" style="max-width:1200px;margin:0 auto;padding:28px 28px 64px">
+
+  <!-- hero -->
+  <div style="display:grid;grid-template-columns:minmax(300px,1.1fr) minmax(260px,1fr);gap:0;border-radius:18px;overflow:hidden;background:#c4552d;color:#fff">
+    <div style="padding:44px 40px;display:flex;flex-direction:column;justify-content:center;gap:15px">
+      <div style="font-size:11px;letter-spacing:2.5px;text-transform:uppercase;font-weight:800;color:#ffd9a3">Your daily creation · {{ todayLabel }}</div>
+      <div style="font-size:36px;font-weight:800;line-height:1.05;letter-spacing:-1px;text-wrap:pretty">{{ heroTitle }}</div>
+      <div style="font-size:14.5px;line-height:1.55;color:rgba(255,255,255,0.82);max-width:44ch">{{ heroDesc }}</div>
+      <div style="display:flex;gap:12px;margin-top:4px;flex-wrap:wrap">
+        <button onClick="{{ openHero }}" style="background:#241a12;color:#faf5ec;font-weight:700;font-size:14px;padding:13px 26px;border-radius:999px;border:none;cursor:pointer;font-family:inherit">Cook tonight →</button>
+        <button onClick="{{ saveHero }}" style="background:transparent;border:2px solid rgba(255,255,255,0.5);color:#fff;font-weight:600;font-size:14px;padding:11px 22px;border-radius:999px;cursor:pointer;font-family:inherit">{{ heroSaveLabel }}</button>
+      </div>
+    </div>
+    <div style="background:{{ heroThumbBg }};display:flex;align-items:center;justify-content:center;min-height:280px">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:rgba(255,255,255,0.55)">{{ heroThumbLabel }}</span>
+    </div>
+  </div>
+
+  <!-- search -->
+  <div style="display:flex;align-items:center;gap:14px;background:#fff;border:1.5px solid rgba(36,26,18,0.15);border-radius:14px;padding:6px 8px 6px 20px;margin:26px 0 22px;box-shadow:0 1px 3px rgba(36,26,18,0.05)">
+    <span style="font-size:16px;color:#c4552d">⌕</span>
+    <input value="{{ searchQuery }}" onChange="{{ onSearchChange }}" placeholder="Search recipes, cuisines, ingredients — or describe a craving…" style="flex:1;border:none;background:transparent;font-family:inherit;font-size:14.5px;padding:12px 0;color:#241a12">
+    <button onClick="{{ searchToCreate }}" style="font-size:12.5px;font-weight:800;color:#fff;background:#2f7a4d;padding:11px 18px;border-radius:10px;border:none;cursor:pointer;font-family:inherit;flex:none">✦ AI create</button>
+  </div>
+
+  <!-- cuisine chips -->
+  <div style="display:flex;gap:9px;margin-bottom:26px;flex-wrap:wrap">
+    <sc-for list="{{ cuisineChips }}" as="chip" hint-placeholder-count="6">
+      <button style="{{ chip.style }}" onClick="{{ chip.onClick }}">{{ chip.label }}</button>
+    </sc-for>
+  </div>
+
+  <!-- results grid -->
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px">
+    <div style="font-size:19px;font-weight:800;letter-spacing:-0.4px">{{ resultsHeading }}</div>
+    <div style="font-size:12.5px;color:rgba(36,26,18,0.55);font-weight:500">{{ resultsCount }} recipes</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:18px">
+    <sc-for list="{{ filteredRecipes }}" as="r" hint-placeholder-count="6">
+      <div onClick="{{ r.open }}" style="background:#fff;border:1px solid rgba(36,26,18,0.12);border-radius:14px;overflow:hidden;cursor:pointer;border-top:4px solid {{ r.accent }}" style-hover="transform:translateY(-2px);box-shadow:0 6px 18px rgba(36,26,18,0.1)">
+        <div style="height:130px;background:{{ r.thumbBg }};display:flex;align-items:center;justify-content:center"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(36,26,18,0.4)">{{ r.thumbLabel }}</span></div>
+        <div style="padding:15px 17px 17px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+            <span style="font-size:10.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:{{ r.accent }}">{{ r.cuisine }}</span>
+            <span style="font-size:11px;font-family:'IBM Plex Mono',monospace;color:rgba(36,26,18,0.5)">{{ r.sourceLabel }}</span>
+          </div>
+          <div style="font-size:16.5px;font-weight:700;line-height:1.22;letter-spacing:-0.3px;margin-bottom:7px">{{ r.title }}</div>
+          <div style="font-size:12.5px;color:rgba(36,26,18,0.6);font-weight:500">{{ r.meta }}</div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- from the web -->
+  <sc-if value="{{ showWeb }}" hint-placeholder-val="{{ true }}">
+  <div style="margin-top:40px;padding:22px 24px;background:#fff;border:1.5px dashed rgba(36,26,18,0.25);border-radius:14px">
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px">
+      <div style="font-size:15px;font-weight:800">Fresh from the web</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(36,26,18,0.5)">simulated web search — live results would pull current recipes from your favorite sites</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <span style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(36,26,18,0.55)">My sites</span>
+      <sc-for list="{{ siteChips }}" as="st" hint-placeholder-count="3">
+        <span style="display:inline-flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:500;color:#2f7a4d;background:rgba(47,122,77,0.1);border:1px solid rgba(47,122,77,0.3);padding:5px 7px 5px 12px;border-radius:999px">{{ st.label }}<button onClick="{{ st.remove }}" title="Remove site" style="border:none;background:rgba(47,122,77,0.2);color:#2f7a4d;width:16px;height:16px;border-radius:50%;font-size:11px;line-height:1;cursor:pointer;padding:0;font-family:inherit">×</button></span>
+      </sc-for>
+      <input value="{{ newSite }}" onChange="{{ onNewSiteChange }}" onKeyDown="{{ onNewSiteKey }}" placeholder="add a site — e.g. smittenkitchen.com" style="border:1.5px solid rgba(36,26,18,0.2);border-radius:999px;padding:7px 14px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;background:#faf5ec;color:#241a12;width:230px">
+      <button onClick="{{ addSite }}" style="border:none;background:#2f7a4d;color:#fff;font-weight:800;font-size:12px;padding:8px 15px;border-radius:999px;cursor:pointer;font-family:'Archivo',sans-serif">+ Add site</button>
+    </div>
+    <sc-if value="{{ siteLoading }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:9px;margin-top:12px;font-size:12.5px;font-weight:600;color:#2f7a4d">
+        <div style="width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(47,122,77,0.25);border-top-color:#2f7a4d;animation:emberSpin .8s linear infinite"></div>
+        {{ siteLoadingLabel }}
+      </div>
+    </sc-if>
+    <sc-if value="{{ siteError }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:10px;font-size:12.5px;color:#a33;font-weight:600">{{ siteError }}</div>
+    </sc-if>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px">
+      <sc-for list="{{ webRecipes }}" as="w" hint-placeholder-count="3">
+        <div onClick="{{ w.open }}" style="flex:1;min-width:240px;display:flex;gap:12px;align-items:center;padding:12px;border:1px solid rgba(36,26,18,0.12);border-radius:10px;cursor:pointer" style-hover="background:#faf5ec">
+          <div style="width:52px;height:52px;border-radius:8px;flex:none;background:{{ w.thumbBg }}"></div>
+          <div>
+            <div style="font-size:13.5px;font-weight:700;line-height:1.25">{{ w.title }}</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#2f7a4d;margin-top:3px">{{ w.source }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<!-- ================= RECIPE DETAIL ================= -->
+<sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Recipe detail" style="max-width:980px;margin:0 auto;padding:24px 28px 64px">
+  <button onClick="{{ goBack }}" style="background:none;border:none;font-family:inherit;font-size:13px;font-weight:700;color:rgba(36,26,18,0.6);cursor:pointer;padding:8px 0;margin-bottom:8px">← Back</button>
+  <div style="background:#fff;border:1px solid rgba(36,26,18,0.12);border-radius:18px;overflow:hidden">
+    <div style="border-bottom:4px solid {{ activeRecipe.accent }};background:repeating-linear-gradient(45deg,#efe7d8,#efe7d8 14px,#e9dfcc 14px,#e9dfcc 28px)">
+      <x-import component-from-global-scope="image-slot" from="./image-slot.js" id="{{ activeRecipe.slotId }}" shape="rect" fit="cover" placeholder="Drop or click to add your dish photo" style="width:100%;height:260px;display:block" hint-size="100%,260px"></x-import>
+    </div>
+    <div style="padding:32px 36px 40px">
+      <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start">
+        <div style="max-width:56ch">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <span style="font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:#fff;background:{{ activeRecipe.accent }};padding:4px 11px;border-radius:4px">{{ activeRecipe.cuisine }}</span>
+            <sc-for list="{{ activeRecipe.tags }}" as="t" hint-placeholder-count="2">
+              <span style="font-size:11.5px;font-weight:600;color:rgba(36,26,18,0.65);background:rgba(36,26,18,0.07);padding:4px 11px;border-radius:999px">{{ t }}</span>
+            </sc-for>
+          </div>
+          <div style="font-size:32px;font-weight:800;letter-spacing:-0.8px;line-height:1.08;text-wrap:pretty">{{ activeRecipe.title }}</div>
+          <div style="font-size:14.5px;line-height:1.6;color:rgba(36,26,18,0.65);margin-top:10px">{{ activeRecipe.desc }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px;flex:none">
+          <button onClick="{{ toggleSaveActive }}" style="{{ saveBtnStyle }}">{{ saveBtnLabel }}</button>
+          <div style="font-size:12px;color:rgba(36,26,18,0.55);font-weight:500;text-align:center">{{ activeRecipe.meta }}</div>
+        </div>
+      </div>
+
+      <!-- collections + tags -->
+      <sc-if value="{{ activeIsSaved }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:18px;padding:14px 16px;background:#faf5ec;border-radius:12px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.5px;color:rgba(36,26,18,0.6);width:96px;flex:none">COLLECTIONS</span>
+            <sc-for list="{{ collectionChips }}" as="c" hint-placeholder-count="3">
+              <button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid rgba(36,26,18,0.1);padding-top:12px">
+            <span style="font-size:12px;font-weight:800;letter-spacing:0.5px;color:rgba(36,26,18,0.6);width:96px;flex:none">MY TAGS</span>
+            <sc-for list="{{ myTagChips }}" as="t" hint-placeholder-count="2">
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#fff;background:#c4552d;padding:6px 8px 6px 13px;border-radius:999px">#{{ t.label }}<button onClick="{{ t.remove }}" title="Remove tag" style="border:none;background:rgba(255,255,255,0.25);color:#fff;width:17px;height:17px;border-radius:50%;font-size:11px;line-height:1;cursor:pointer;padding:0;font-family:inherit">×</button></span>
+            </sc-for>
+            <div style="display:inline-flex;align-items:center;gap:6px">
+              <input value="{{ newTag }}" onChange="{{ onNewTagChange }}" onKeyDown="{{ onNewTagKey }}" placeholder="add a tag…" style="border:1.5px solid rgba(36,26,18,0.2);border-radius:999px;padding:7px 14px;font-family:inherit;font-size:12.5px;background:#fff;color:#241a12;width:130px">
+              <button onClick="{{ addTag }}" style="border:none;background:#241a12;color:#faf5ec;font-weight:800;font-size:12px;padding:8px 15px;border-radius:999px;cursor:pointer;font-family:inherit">+ Add</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="display:grid;grid-template-columns:280px 1fr;gap:36px;margin-top:32px">
+        <div>
+          <div style="font-size:15px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#c4552d;margin-bottom:14px">Ingredients</div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <sc-for list="{{ activeRecipe.ingredients }}" as="ing" hint-placeholder-count="6">
+              <label style="display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.45;cursor:pointer">
+                <input type="checkbox" style="margin-top:2px;accent-color:#c4552d">
+                <span>{{ ing }}</span>
+              </label>
+            </sc-for>
+          </div>
+          <div style="margin-top:24px;padding:16px;background:#faf5ec;border-radius:12px">
+            <div style="font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:10px">Per serving</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;font-weight:600">
+              <div>{{ activeRecipe.nutrition.cal }} cal</div>
+              <div>{{ activeRecipe.nutrition.protein }}g protein</div>
+              <div>{{ activeRecipe.nutrition.carbs }}g carbs</div>
+              <div>{{ activeRecipe.nutrition.fat }}g fat</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:15px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#c4552d;margin-bottom:14px">Method</div>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <sc-for list="{{ activeSteps }}" as="s" hint-placeholder-count="5">
+              <div style="display:flex;gap:14px">
+                <div style="width:28px;height:28px;border-radius:50%;background:#241a12;color:#faf5ec;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none">{{ s.n }}</div>
+                <div style="font-size:14px;line-height:1.6;padding-top:3px">{{ s.text }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= CREATE ================= -->
+<sc-if value="{{ isCreate }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="AI Create" style="max-width:860px;margin:0 auto;padding:32px 28px 64px">
+  <div style="text-align:center;margin-bottom:26px">
+    <div style="display:inline-block;font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:800;color:#fff;background:#2f7a4d;padding:6px 14px;border-radius:999px;margin-bottom:14px">✦ AI recipe creation</div>
+    <div style="font-size:34px;font-weight:800;letter-spacing:-1px">What are you craving?</div>
+    <div style="font-size:14px;color:rgba(36,26,18,0.6);margin-top:8px">Ember invents a brand-new recipe for you — tuned to your profile.</div>
+  </div>
+
+  <sc-if value="{{ notGeneratingNoResult }}" hint-placeholder-val="{{ true }}">
+  <div style="background:#fff;border:1px solid rgba(36,26,18,0.12);border-radius:18px;padding:28px 30px">
+    <textarea value="{{ craving }}" onChange="{{ onCravingChange }}" rows="{{ three }}" placeholder="e.g. A cozy noodle soup that feels like a hug, no dairy, some heat…" style="width:100%;box-sizing:border-box;border:1.5px solid rgba(36,26,18,0.18);border-radius:12px;padding:14px 16px;font-family:inherit;font-size:14.5px;resize:vertical;background:#faf5ec;color:#241a12"></textarea>
+
+    <div style="margin-top:22px">
+      <div style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:10px">Cuisine</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <sc-for list="{{ createCuisineChips }}" as="c" hint-placeholder-count="8"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:22px">
+      <div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:10px">Time</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <sc-for list="{{ createTimeChips }}" as="c" hint-placeholder-count="4"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:10px">Skill level</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <sc-for list="{{ createSkillChips }}" as="c" hint-placeholder-count="3"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:22px">
+      <div style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:10px">Ingredients on hand <span style="font-weight:500;text-transform:none;letter-spacing:0">(optional)</span></div>
+      <input value="{{ onHand }}" onChange="{{ onHandChange }}" placeholder="e.g. chicken thighs, lemongrass, coconut milk" style="width:100%;box-sizing:border-box;border:1.5px solid rgba(36,26,18,0.18);border-radius:12px;padding:13px 16px;font-family:inherit;font-size:14px;background:#faf5ec;color:#241a12">
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:26px;flex-wrap:wrap;gap:12px">
+      <div style="font-size:12.5px;color:rgba(36,26,18,0.55)">Uses your profile: <span style="font-weight:700;color:#2f7a4d">{{ profileSummary }}</span></div>
+      <button onClick="{{ generate }}" style="background:#c4552d;color:#fff;font-weight:800;font-size:15px;padding:15px 34px;border-radius:999px;border:none;cursor:pointer;font-family:inherit" style-hover="background:#a8461f">✦ Create my recipe</button>
+    </div>
+    <sc-if value="{{ genError }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:14px;font-size:13px;color:#a33;font-weight:600">{{ genError }}</div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ generating }}" hint-placeholder-val="{{ false }}">
+    <div style="text-align:center;padding:70px 0">
+      <div style="width:44px;height:44px;border-radius:50%;border:4px solid rgba(196,85,45,0.2);border-top-color:#c4552d;animation:emberSpin .8s linear infinite;margin:0 auto 18px"></div>
+      <div style="font-size:15px;font-weight:700">{{ genStatus }}</div>
+      <div style="font-size:12.5px;color:rgba(36,26,18,0.55);margin-top:6px">Inventing something new from your parameters…</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hasGenRecipe }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#fff;border:2px solid #2f7a4d;border-radius:18px;padding:30px 34px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <div style="max-width:52ch">
+          <div style="display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#fff;background:#2f7a4d;padding:4px 11px;border-radius:4px;margin-bottom:12px">✦ New creation · {{ genRecipe.cuisine }}</div>
+          <div style="font-size:30px;font-weight:800;letter-spacing:-0.8px;line-height:1.1;text-wrap:pretty">{{ genRecipe.title }}</div>
+          <div style="font-size:14px;line-height:1.6;color:rgba(36,26,18,0.65);margin-top:10px">{{ genRecipe.desc }}</div>
+          <div style="font-size:12.5px;color:rgba(36,26,18,0.55);font-weight:600;margin-top:10px">{{ genRecipe.meta }}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px;flex:none">
+          <button onClick="{{ saveGenerated }}" style="background:#241a12;color:#faf5ec;font-weight:700;font-size:13.5px;padding:12px 22px;border-radius:999px;border:none;cursor:pointer;font-family:inherit">{{ genSaveLabel }}</button>
+          <button onClick="{{ regenerate }}" style="background:none;border:1.5px solid rgba(36,26,18,0.25);font-weight:600;font-size:13px;padding:10px 20px;border-radius:999px;cursor:pointer;font-family:inherit;color:#241a12">↻ Try another</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:32px;margin-top:26px">
+        <div>
+          <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#c4552d;margin-bottom:12px">Ingredients</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ genRecipe.ingredients }}" as="ing" hint-placeholder-count="6"><div style="font-size:13.5px;line-height:1.45">· {{ ing }}</div></sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#c4552d;margin-bottom:12px">Method</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-for list="{{ genSteps }}" as="s" hint-placeholder-count="5">
+              <div style="display:flex;gap:12px"><div style="width:24px;height:24px;border-radius:50%;background:#241a12;color:#faf5ec;font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none">{{ s.n }}</div><div style="font-size:13.5px;line-height:1.55;padding-top:2px">{{ s.text }}</div></div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</sc-if>
+
+<!-- ================= DAILY ================= -->
+<sc-if value="{{ isDaily }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Daily recipe" style="max-width:1100px;margin:0 auto;padding:32px 28px 64px">
+  <div style="display:grid;grid-template-columns:340px 1fr;gap:26px;align-items:start">
+
+    <!-- settings -->
+    <div style="background:#fff;border:1px solid rgba(36,26,18,0.12);border-radius:18px;padding:24px 24px 28px;position:sticky;top:84px">
+      <div style="font-size:17px;font-weight:800;letter-spacing:-0.3px;margin-bottom:4px">Daily recipe settings</div>
+      <div style="font-size:12.5px;color:rgba(36,26,18,0.55);line-height:1.5;margin-bottom:18px">Every day Ember invents one new recipe from these parameters.</div>
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:8px">Cuisines</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ dailyCuisineChips }}" as="c" hint-placeholder-count="6"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:8px">Dietary</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ dailyDietChips }}" as="c" hint-placeholder-count="4"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:8px">Time budget</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ dailyTimeChips }}" as="c" hint-placeholder-count="4"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:8px">Skill</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ dailySkillChips }}" as="c" hint-placeholder-count="3"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:8px">Nutrition goal</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ dailyGoalChips }}" as="c" hint-placeholder-count="4"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:8px">Usually on hand</div>
+          <input value="{{ dailyOnHand }}" onChange="{{ onDailyOnHandChange }}" placeholder="e.g. eggs, rice, frozen peas" style="width:100%;box-sizing:border-box;border:1.5px solid rgba(36,26,18,0.18);border-radius:10px;padding:11px 13px;font-family:inherit;font-size:13px;background:#faf5ec;color:#241a12">
+        </div>
+        <div style="border-top:1px solid rgba(36,26,18,0.12);padding-top:16px">
+          <div style="font-size:11px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:8px">Email delivery</div>
+          <button onClick="{{ toggleEmailDaily }}" style="{{ emailToggleStyle }}">{{ emailToggleLabel }}</button>
+          <div style="font-size:11.5px;line-height:1.5;color:rgba(36,26,18,0.55);margin-top:8px">{{ emailDeliveryNote }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- today's card -->
+    <div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div style="font-size:26px;font-weight:800;letter-spacing:-0.7px">Today · {{ todayLabel }}</div>
+        <button onClick="{{ generateDaily }}" style="background:#c4552d;color:#fff;font-weight:800;font-size:13.5px;padding:12px 24px;border-radius:999px;border:none;cursor:pointer;font-family:inherit">{{ dailyBtnLabel }}</button>
+      </div>
+
+      <sc-if value="{{ dailyGenerating }}" hint-placeholder-val="{{ false }}">
+        <div style="text-align:center;padding:80px 0;background:#fff;border-radius:18px;border:1px solid rgba(36,26,18,0.12)">
+          <div style="width:44px;height:44px;border-radius:50%;border:4px solid rgba(196,85,45,0.2);border-top-color:#c4552d;animation:emberSpin .8s linear infinite;margin:0 auto 18px"></div>
+          <div style="font-size:15px;font-weight:700">Cooking up today's recipe…</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ hasDaily }}" hint-placeholder-val="{{ true }}">
+        <div style="background:#241a12;color:#faf5ec;border-radius:18px;overflow:hidden">
+          <div style="height:190px;background:{{ dailyThumbBg }};display:flex;align-items:center;justify-content:center"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:rgba(250,245,236,0.4)">{{ dailyThumbLabel }}</span></div>
+          <div style="padding:28px 32px 32px">
+            <div style="display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#241a12;background:#e8a13c;padding:4px 11px;border-radius:4px;margin-bottom:12px">{{ dailyRecipe.cuisine }} · {{ dailyRecipe.meta }}</div>
+            <div style="font-size:30px;font-weight:800;letter-spacing:-0.8px;line-height:1.1;text-wrap:pretty">{{ dailyRecipe.title }}</div>
+            <div style="font-size:14px;line-height:1.6;color:rgba(250,245,236,0.7);margin-top:10px;max-width:58ch">{{ dailyRecipe.desc }}</div>
+            <div style="display:flex;gap:11px;margin-top:20px;flex-wrap:wrap">
+              <button onClick="{{ openDaily }}" style="background:#e8a13c;color:#241a12;font-weight:800;font-size:13.5px;padding:12px 24px;border-radius:999px;border:none;cursor:pointer;font-family:inherit">View full recipe →</button>
+              <button onClick="{{ saveDaily }}" style="background:none;border:1.5px solid rgba(250,245,236,0.4);color:#faf5ec;font-weight:600;font-size:13px;padding:11px 22px;border-radius:999px;cursor:pointer;font-family:inherit">{{ dailySaveLabel }}</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="margin-top:22px;padding:16px 20px;background:rgba(232,161,60,0.12);border-radius:12px;font-size:12.5px;line-height:1.55;color:rgba(36,26,18,0.7)">
+        <span style="font-weight:800;color:#9a6a10">How it works:</span> in the live app a new recipe is generated automatically each morning from your parameters. In this prototype, press the generate button to create today's — it's saved for the rest of the day.
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= COOKBOOK ================= -->
+<sc-if value="{{ isCookbook }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Cookbook" style="max-width:1200px;margin:0 auto;padding:32px 28px 64px">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+    <div style="font-size:30px;font-weight:800;letter-spacing:-0.8px">{{ possessive }} cookbook</div>
+    <div style="font-size:13px;color:rgba(36,26,18,0.55);font-weight:500">{{ savedCount }} saved recipes</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;background:#fff;border:1.5px solid rgba(36,26,18,0.15);border-radius:14px;padding:4px 20px;margin-bottom:18px">
+    <span style="font-size:15px;color:#c4552d">⌕</span>
+    <input value="{{ cbQuery }}" onChange="{{ onCbQueryChange }}" placeholder="Search your cookbook…" style="flex:1;border:none;background:transparent;font-family:inherit;font-size:14px;padding:12px 0;color:#241a12">
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <sc-for list="{{ cbCollectionChips }}" as="c" hint-placeholder-count="4"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for>
+  </div>
+  <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:26px">
+    <sc-for list="{{ cbTagChips }}" as="c" hint-placeholder-count="6"><button style="{{ c.style }}" onClick="{{ c.onClick }}">#{{ c.label }}</button></sc-for>
+  </div>
+
+  <sc-if value="{{ cbEmpty }}" hint-placeholder-val="{{ false }}">
+    <div style="text-align:center;padding:70px 20px;background:#fff;border:1.5px dashed rgba(36,26,18,0.25);border-radius:18px">
+      <div style="font-size:17px;font-weight:800;margin-bottom:8px">Nothing here yet</div>
+      <div style="font-size:13.5px;color:rgba(36,26,18,0.6);margin-bottom:18px">Save recipes from Discover, or create something new.</div>
+      <button onClick="{{ goDiscover }}" style="background:#c4552d;color:#fff;font-weight:700;font-size:13.5px;padding:12px 26px;border-radius:999px;border:none;cursor:pointer;font-family:inherit">Browse recipes</button>
+    </div>
+  </sc-if>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:18px">
+    <sc-for list="{{ cbRecipes }}" as="r" hint-placeholder-count="3">
+      <div onClick="{{ r.open }}" style="background:#fff;border:1px solid rgba(36,26,18,0.12);border-radius:14px;overflow:hidden;cursor:pointer;border-top:4px solid {{ r.accent }}" style-hover="transform:translateY(-2px);box-shadow:0 6px 18px rgba(36,26,18,0.1)">
+        <div style="height:120px;background:{{ r.thumbBg }};display:flex;align-items:center;justify-content:center"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(36,26,18,0.4)">{{ r.thumbLabel }}</span></div>
+        <div style="padding:15px 17px 17px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+            <span style="font-size:10.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:{{ r.accent }}">{{ r.cuisine }}</span>
+            <span style="font-size:11px;font-family:'IBM Plex Mono',monospace;color:rgba(36,26,18,0.5)">{{ r.collectionsLabel }}</span>
+          </div>
+          <div style="font-size:16.5px;font-weight:700;line-height:1.22;letter-spacing:-0.3px;margin-bottom:7px">{{ r.title }}</div>
+          <div style="font-size:12.5px;color:rgba(36,26,18,0.6);font-weight:500">{{ r.meta }}</div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= PROFILE WIZARD ================= -->
+<sc-if value="{{ isProfile }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Profile setup" style="max-width:680px;margin:0 auto;padding:36px 28px 64px">
+  <div style="text-align:center;margin-bottom:24px">
+    <div style="font-size:30px;font-weight:800;letter-spacing:-0.8px">{{ wizardTitle }}</div>
+    <div style="font-size:13.5px;color:rgba(36,26,18,0.6);margin-top:6px">Ember uses this to personalize search, creations, and your daily recipe.</div>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:26px">
+    <sc-for list="{{ wizardDots }}" as="d" hint-placeholder-count="4"><div style="{{ d.style }}"></div></sc-for>
+  </div>
+
+  <div style="background:#fff;border:1px solid rgba(36,26,18,0.12);border-radius:18px;padding:30px 32px">
+
+    <sc-if value="{{ wStep1 }}" hint-placeholder-val="{{ true }}">
+      <div style="font-size:19px;font-weight:800;margin-bottom:6px">Hi there — what should we call you?</div>
+      <div style="font-size:13px;color:rgba(36,26,18,0.55);margin-bottom:18px">Step 1 of 4 · Basics</div>
+      <div style="display:flex;gap:20px;align-items:center;margin-bottom:24px">
+        <div style="width:92px;height:92px;flex:none;border-radius:50%;background:#faf5ec;border:1.5px dashed rgba(36,26,18,0.3)">
+          <x-import component-from-global-scope="image-slot" from="./image-slot.js" id="avatar" shape="circle" fit="cover" placeholder="Add photo" hint-size="92px,92px"></x-import>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;flex:1">
+          <input value="{{ pName }}" onChange="{{ onPNameChange }}" placeholder="Your name" style="width:100%;box-sizing:border-box;border:1.5px solid rgba(36,26,18,0.18);border-radius:12px;padding:14px 16px;font-family:inherit;font-size:15px;background:#faf5ec;color:#241a12">
+          <input value="{{ pEmail }}" onChange="{{ onPEmailChange }}" type="email" placeholder="you@email.com — for daily recipe delivery" style="width:100%;box-sizing:border-box;border:1.5px solid rgba(36,26,18,0.18);border-radius:12px;padding:14px 16px;font-family:inherit;font-size:14px;background:#faf5ec;color:#241a12">
+        </div>
+      </div>
+      <div style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:10px">Cuisines you love</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ pCuisineChips }}" as="c" hint-placeholder-count="10"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for></div>
+    </sc-if>
+
+    <sc-if value="{{ wStep2 }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:19px;font-weight:800;margin-bottom:6px">Any dietary needs?</div>
+      <div style="font-size:13px;color:rgba(36,26,18,0.55);margin-bottom:18px">Step 2 of 4 · Diet &amp; allergies</div>
+      <div style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:10px">Diet</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px"><sc-for list="{{ pDietChips }}" as="c" hint-placeholder-count="6"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for></div>
+      <div style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:10px">Allergies to avoid</div>
+      <input value="{{ pAllergies }}" onChange="{{ onPAllergiesChange }}" placeholder="e.g. peanuts, shellfish" style="width:100%;box-sizing:border-box;border:1.5px solid rgba(36,26,18,0.18);border-radius:12px;padding:14px 16px;font-family:inherit;font-size:14px;background:#faf5ec;color:#241a12">
+    </sc-if>
+
+    <sc-if value="{{ wStep3 }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:19px;font-weight:800;margin-bottom:6px">How do you like to cook?</div>
+      <div style="font-size:13px;color:rgba(36,26,18,0.55);margin-bottom:18px">Step 3 of 4 · Skill &amp; time</div>
+      <div style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:10px">Skill level</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px"><sc-for list="{{ pSkillChips }}" as="c" hint-placeholder-count="3"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for></div>
+      <div style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:rgba(36,26,18,0.55);margin-bottom:10px">Weeknight time budget</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ pTimeChips }}" as="c" hint-placeholder-count="4"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for></div>
+    </sc-if>
+
+    <sc-if value="{{ wStep4 }}" hint-placeholder-val="{{ false }}">
+      <div style="font-size:19px;font-weight:800;margin-bottom:6px">Any nutrition goals?</div>
+      <div style="font-size:13px;color:rgba(36,26,18,0.55);margin-bottom:18px">Step 4 of 4 · Goals</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:26px"><sc-for list="{{ pGoalChips }}" as="c" hint-placeholder-count="5"><button style="{{ c.style }}" onClick="{{ c.onClick }}">{{ c.label }}</button></sc-for></div>
+      <div style="padding:16px 18px;background:#faf5ec;border-radius:12px;font-size:13px;line-height:1.6">
+        <span style="font-weight:800">Your profile:</span> {{ profileReview }}
+      </div>
+    </sc-if>
+
+    <div style="display:flex;justify-content:space-between;margin-top:28px">
+      <button onClick="{{ wizardBack }}" style="{{ wizardBackStyle }}">← Back</button>
+      <button onClick="{{ wizardNext }}" style="background:#c4552d;color:#fff;font-weight:800;font-size:14px;padding:13px 30px;border-radius:999px;border:none;cursor:pointer;font-family:inherit">{{ wizardNextLabel }}</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:900},&quot;showWebSection&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Discover&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } };
+    this.CUISINES = ['Italian', 'Japanese', 'Thai', 'Mexican', 'Indian', 'Korean', 'Mediterranean', 'French', 'American', 'Baking'];
+    this.DIETS = ['None', 'Vegetarian', 'Vegan', 'Pescatarian', 'Gluten-free', 'Dairy-free', 'Low-carb'];
+    this.SKILLS = ['Beginner', 'Comfortable', 'Adventurous'];
+    this.TIMES = ['15 min', '30 min', '45 min', '1 hr+'];
+    this.GOALS = ['Balanced', 'High protein', 'Low calorie', 'Heart healthy', 'No goal'];
+    this.ACCENTS = { Italian: '#c4552d', Japanese: '#9a6a10', Thai: '#2f7a4d', Mexican: '#b0451f', Indian: '#a8621a', Korean: '#8c3b2e', Mediterranean: '#2f7a4d', French: '#7a5a2f', American: '#8c3b2e', Baking: '#9a6a10' };
+    this.seed = this.buildSeed();
+    this.state = {
+      screen: 'discover', prevScreen: 'discover',
+      profile: load('ember_profile', { name: '', email: '', emailDaily: false, cuisines: ['Japanese', 'Italian'], diets: [], allergies: '', skill: 'Comfortable', time: '30 min', goal: 'Balanced', onboarded: false }),
+      savedIds: load('ember_saved', ['r3']),
+      collections: load('ember_collections', { 'Weeknight': [], 'Want to try': ['r3'], 'Baking': [] }),
+      customRecipes: load('ember_custom', []),
+      daily: load('ember_daily', null),
+      searchQuery: '', activeCuisine: 'All', activeId: null,
+      craving: '', createCuisine: 'Surprise me', createTime: '30 min', createSkill: 'Comfortable', onHand: '',
+      generating: false, genRecipe: null, genError: null, genSaved: false, genStatus: '',
+      dailyGenerating: false, dailyOnHand: load('ember_daily_onhand', ''),
+      cbQuery: '', cbCollection: 'All', cbTags: [],
+      customTags: load('ember_tags', {}), newTag: '',
+      photos: {},
+      sites: load('ember_sites', ['halfbakedharvest.com', 'pinchofyum.com', 'sallysbakingaddiction.com']),
+      newSite: '', siteLoading: null, siteError: null,
+      wizardStep: 1
+    };
+  }
+
+  buildSeed() {
+    const N = (cal, protein, carbs, fat) => ({ cal, protein, carbs, fat });
+    return [
+      { id: 'r1', title: 'Braised Short Rib Ragu', cuisine: 'Italian', mins: 150, time: '2\u00bd hr', difficulty: 'Adventurous', rating: '4.9', reviews: 312, desc: 'Fall-apart short ribs slow-braised in tomato, red wine and rosemary, folded through pappardelle.', tags: ['comfort', 'weekend', 'pasta'], nutrition: N(680, 42, 55, 28), ingredients: ['2 lb bone-in short ribs', '1 onion, diced', '3 garlic cloves, minced', '2 tbsp tomato paste', '1 cup red wine', '28 oz crushed tomatoes', '2 sprigs rosemary', '12 oz pappardelle', 'Parmesan, to serve'], steps: ['Season ribs generously; sear hard in olive oil until deeply browned on all sides. Remove.', 'Soften onion and garlic in the same pot; stir in tomato paste and cook 2 minutes.', 'Deglaze with wine, scraping the fond; reduce by half.', 'Return ribs with tomatoes and rosemary. Cover and braise at 325\u00b0F for 2\u00bd hours until falling apart.', 'Shred meat into the sauce; season. Toss with cooked pappardelle and finish with parmesan.'] },
+      { id: 'r2', title: 'Khao Soi Chicken Curry', cuisine: 'Thai', mins: 45, time: '45 min', difficulty: 'Comfortable', rating: '4.8', reviews: 198, desc: 'Northern Thai coconut curry noodles with braised chicken, crispy noodle crown and pickled mustard greens.', tags: ['noodles', 'spicy', 'one-pot'], nutrition: N(590, 34, 52, 27), ingredients: ['4 chicken thighs', '3 tbsp khao soi or red curry paste', '2 cans coconut milk', '2 tsp curry powder', '1 tbsp fish sauce', '1 tsp palm sugar', '12 oz egg noodles', 'Shallots, lime, chili oil to garnish'], steps: ['Fry curry paste and curry powder in thick coconut cream until fragrant and split.', 'Add chicken; coat in the paste, then pour in remaining coconut milk. Simmer 25 minutes.', 'Season with fish sauce and palm sugar.', 'Boil noodles; fry a handful until crisp for topping.', 'Bowl the noodles, ladle over curry and chicken; crown with crispy noodles, shallots, lime and chili oil.'] },
+      { id: 'r3', title: 'Charred Miso Salmon with Blistered Snap Peas', cuisine: 'Japanese', mins: 30, time: '30 min', difficulty: 'Comfortable', rating: '4.9', reviews: 154, desc: 'Sweet-savory miso glaze under a hot broiler, with snap peas charred in the same pan.', tags: ['weeknight', 'high protein', 'seafood'], nutrition: N(470, 38, 22, 24), ingredients: ['4 salmon fillets', '3 tbsp white miso', '1 tbsp mirin', '1 tbsp maple syrup', '2 tsp soy sauce', '12 oz sugar snap peas', '1 tbsp sesame oil', 'Toasted sesame + scallions'], steps: ['Whisk miso, mirin, maple and soy into a glaze; coat salmon and rest 10 minutes.', 'Broil salmon on high 6\u20138 minutes until charred at the edges and just cooked through.', 'Meanwhile blister snap peas in screaming-hot sesame oil, 2\u20133 minutes.', 'Plate over rice; scatter sesame and scallions.'] },
+      { id: 'r4', title: 'Brown Butter Miso Cookies', cuisine: 'Baking', mins: 35, time: '35 min', difficulty: 'Beginner', rating: '5.0', reviews: 86, desc: 'Chewy-centered cookies with nutty brown butter and a savory whisper of miso.', tags: ['dessert', 'cookies', 'make ahead'], nutrition: N(210, 3, 26, 11), ingredients: ['1 cup butter, browned', '2 tbsp white miso', '1 cup brown sugar', '\u00bd cup sugar', '2 eggs', '2\u00bc cups flour', '1 tsp baking soda', 'Flaky salt'], steps: ['Brown the butter until nutty; cool slightly, then whisk in miso and sugars.', 'Beat in eggs, then fold in flour and baking soda.', 'Chill dough 30 minutes; scoop onto trays.', 'Bake at 350\u00b0F for 11\u201312 minutes until edges set. Finish with flaky salt.'] },
+      { id: 'r5', title: 'Chicken Tinga Tacos', cuisine: 'Mexican', mins: 40, time: '40 min', difficulty: 'Beginner', rating: '4.7', reviews: 241, desc: 'Smoky chipotle-tomato shredded chicken piled onto charred tortillas with quick-pickled onion.', tags: ['weeknight', 'tacos', 'meal prep'], nutrition: N(430, 33, 38, 16), ingredients: ['1\u00bd lb chicken thighs', '1 onion, sliced', '2 chipotles in adobo', '14 oz fire-roasted tomatoes', '2 garlic cloves', '1 tsp oregano', 'Corn tortillas', 'Pickled red onion, cilantro, cotija'], steps: ['Simmer chicken in salted water 20 minutes; shred.', 'Blend tomatoes, chipotles, garlic and oregano into a smooth sauce.', 'Fry sliced onion; pour in sauce and simmer 5 minutes, then fold in chicken.', 'Char tortillas over flame; pile with tinga, pickled onion, cilantro and cotija.'] },
+      { id: 'r6', title: 'Summer Peach & Burrata Salad', cuisine: 'Italian', mins: 15, time: '15 min', difficulty: 'Beginner', rating: '4.8', reviews: 122, desc: 'Ripe peaches, torn burrata, basil and hot honey over grilled bread.', tags: ['summer', 'no-cook', 'salad'], source: 'halfbakedharvest.com', nutrition: N(380, 14, 34, 21), ingredients: ['3 ripe peaches, sliced', '8 oz burrata', 'Basil leaves', '2 tbsp hot honey', 'Olive oil + flaky salt', '4 slices sourdough, grilled', 'Aged balsamic'], steps: ['Grill bread until charred; rub with olive oil.', 'Arrange peaches and torn burrata over a platter.', 'Drizzle hot honey, olive oil and balsamic; shower with basil and flaky salt.', 'Serve with the grilled bread for scooping.'] },
+      { id: 'r7', title: 'One-Pot Lemon Orzo with Shrimp', cuisine: 'Mediterranean', mins: 30, time: '30 min', difficulty: 'Beginner', rating: '4.7', reviews: 178, desc: 'Creamy lemon orzo cooked risotto-style with garlicky shrimp and feta, all in one pan.', tags: ['one-pot', 'weeknight', 'seafood'], source: 'pinchofyum.com', nutrition: N(520, 35, 48, 19), ingredients: ['1 lb shrimp, peeled', '1\u00bd cups orzo', '3 garlic cloves', '3 cups chicken broth', '1 lemon, zest + juice', '\u00bd cup feta', '2 handfuls spinach', 'Dill, to finish'], steps: ['Sear shrimp with garlic 2 minutes per side; remove.', 'Toast orzo in the same pan; add broth gradually, stirring until creamy, ~12 minutes.', 'Stir in lemon, spinach and feta until wilted and glossy.', 'Return shrimp; finish with dill and black pepper.'] },
+      { id: 'r8', title: 'Cinnamon Roll Focaccia', cuisine: 'Baking', mins: 90, time: '1\u00bd hr', difficulty: 'Comfortable', rating: '4.9', reviews: 64, desc: 'Pillowy overnight focaccia swirled with cinnamon butter and a vanilla glaze.', tags: ['brunch', 'bread', 'weekend'], source: 'sallysbakingaddiction.com', nutrition: N(340, 6, 52, 12), ingredients: ['4 cups bread flour', '2 tsp instant yeast', '1\u00be cups warm water', '\u00bc cup olive oil', '\u2153 cup butter, soft', '\u00bd cup brown sugar + 2 tbsp cinnamon', '1 cup powdered sugar + vanilla, for glaze'], steps: ['Mix flour, yeast, water and salt; fold twice, then proof in an oiled pan until bubbly.', 'Dimple with oiled fingers; swirl cinnamon butter across the top.', 'Bake at 425\u00b0F for 22\u201325 minutes until deep gold.', 'Cool slightly and lace with vanilla glaze.'] },
+      { id: 'r9', title: 'Crispy Rice Bibimbap Bowls', cuisine: 'Korean', mins: 35, time: '35 min', difficulty: 'Comfortable', rating: '4.8', reviews: 141, desc: 'Golden crackly rice, gochujang beef, quick vegetables and a jammy egg.', tags: ['bowls', 'spicy', 'meal prep'], nutrition: N(610, 31, 62, 25), ingredients: ['3 cups cooked short-grain rice', '\u00bd lb ground beef', '3 tbsp gochujang', '1 tbsp soy + 1 tsp sugar', '1 carrot, julienned', '1 cup spinach, blanched', '4 eggs', 'Sesame oil + seeds'], steps: ['Press rice into a hot oiled skillet; crisp undisturbed 6\u20138 minutes.', 'Brown beef; season with gochujang, soy and sugar.', 'Dress carrot and spinach lightly with sesame oil and salt.', 'Fry eggs jammy. Build bowls over the crispy rice and finish with sesame.'] },
+      { id: 'r10', title: 'Palak Paneer', cuisine: 'Indian', mins: 40, time: '40 min', difficulty: 'Comfortable', rating: '4.8', reviews: 203, desc: 'Silky spinach gravy with charred paneer, finished with garam masala and cream.', tags: ['vegetarian', 'curry', 'comfort'], nutrition: N(450, 21, 24, 31), ingredients: ['14 oz paneer, cubed', '1 lb spinach, blanched', '1 onion + 2 tomatoes', '1 tbsp ginger-garlic paste', '1 tsp cumin + 1 tsp garam masala', '\u00bd tsp chili powder', '3 tbsp cream'], steps: ['Sear paneer cubes until golden; set aside.', 'Blend blanched spinach smooth.', 'Fry cumin, onion and ginger-garlic; add tomatoes and spices, cook until jammy.', 'Stir in spinach pur\u00e9e; simmer 8 minutes, then fold in paneer and cream.'] }
+    ];
+  }
+
+  componentDidMount() { this.persistTimer = null; this.loadPhotos(); }
+
+  loadPhotos() {
+    fetch('.image-slots.state.json?t=' + Date.now())
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => {
+        if (!j || typeof j !== 'object') return;
+        const photos = {};
+        for (const k in j) { const v = j[k]; const u = typeof v === 'string' ? v : (v && v.u); if (u) photos[k] = u; }
+        this.setState({ photos });
+      })
+      .catch(() => {});
+  }
+
+  save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+
+  allRecipes() { return this.seed.concat(this.state.customRecipes); }
+  findRecipe(id) { return this.allRecipes().find(r => r.id === id); }
+
+  go(screen) { this.loadPhotos(); this.setState(s => ({ screen, prevScreen: s.screen })); }
+  openRecipe(id) { this.setState(s => ({ activeId: id, screen: 'detail', prevScreen: s.screen === 'detail' ? s.prevScreen : s.screen })); }
+
+  toggleSave(id) {
+    this.setState(s => {
+      const saved = s.savedIds.includes(id) ? s.savedIds.filter(x => x !== id) : s.savedIds.concat(id);
+      this.save('ember_saved', saved);
+      return { savedIds: saved };
+    });
+  }
+
+  toggleCollection(name, id) {
+    this.setState(s => {
+      const col = Object.assign({}, s.collections);
+      const arr = col[name] || [];
+      col[name] = arr.includes(id) ? arr.filter(x => x !== id) : arr.concat(id);
+      this.save('ember_collections', col);
+      return { collections: col };
+    });
+  }
+
+  setProfile(patch) {
+    this.setState(s => {
+      const profile = Object.assign({}, s.profile, patch);
+      this.save('ember_profile', profile);
+      return { profile };
+    });
+  }
+
+  toggleProfileArr(key, val) {
+    const arr = this.state.profile[key] || [];
+    this.setProfile({ [key]: arr.includes(val) ? arr.filter(x => x !== val) : arr.concat(val) });
+  }
+
+  chip(label, active, activeBg, onClick, small) {
+    return {
+      label, onClick,
+      style: {
+        fontSize: small ? '12px' : '12.5px', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+        padding: small ? '7px 13px' : '8px 16px', borderRadius: '999px',
+        border: active ? '1.5px solid transparent' : '1.5px solid rgba(36,26,18,0.22)',
+        background: active ? activeBg : 'transparent',
+        color: active ? '#fff' : 'rgba(36,26,18,0.75)'
+      }
+    };
+  }
+
+  navStyle(active) {
+    return {
+      fontFamily: 'inherit', fontSize: '13.5px', fontWeight: 700, cursor: 'pointer', border: 'none',
+      padding: '9px 18px', borderRadius: '999px',
+      background: active ? '#e8a13c' : 'transparent',
+      color: active ? '#241a12' : 'rgba(36,26,18,0.65)'
+    };
+  }
+
+  addSite() {
+    const domain = this.state.newSite.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+    if (!domain || !domain.includes('.')) { this.setState({ siteError: 'Enter a site like smittenkitchen.com' }); return; }
+    if (this.state.sites.includes(domain)) { this.setState({ newSite: '', siteError: null }); return; }
+    const sites = this.state.sites.concat(domain);
+    this.save('ember_sites', sites);
+    this.setState({ sites, newSite: '', siteError: null });
+    this.fetchSiteRecipe(domain);
+  }
+
+  removeSite(domain) {
+    const sites = this.state.sites.filter(d => d !== domain);
+    this.save('ember_sites', sites);
+    this.setState({ sites });
+  }
+
+  async fetchSiteRecipe(domain) {
+    this.setState({ siteLoading: domain });
+    try {
+      const r = await this.callClaude({ purpose: 'Invent ONE recipe that could plausibly be the latest post on the food blog ' + domain + ', matching the typical style and voice of that site', site: domain });
+      r.source = domain;
+      this.setState(s => {
+        const customRecipes = s.customRecipes.concat(r);
+        this.save('ember_custom', customRecipes);
+        return { customRecipes, siteLoading: null };
+      });
+    } catch (e) {
+      this.setState({ siteLoading: null, siteError: 'Couldn\u2019t fetch from ' + domain + ' right now \u2014 the site was added, try again in a moment.' });
+    }
+  }
+
+  addTag() {
+    const tag = this.state.newTag.trim().toLowerCase().replace(/^#/, '');
+    const id = this.state.activeId;
+    if (!tag || !id) return;
+    this.setState(s => {
+      const map = Object.assign({}, s.customTags);
+      const arr = map[id] || [];
+      if (!arr.includes(tag)) map[id] = arr.concat(tag);
+      this.save('ember_tags', map);
+      return { customTags: map, newTag: '' };
+    });
+  }
+
+  removeTag(id, tag) {
+    this.setState(s => {
+      const map = Object.assign({}, s.customTags);
+      map[id] = (map[id] || []).filter(t => t !== tag);
+      this.save('ember_tags', map);
+      return { customTags: map };
+    });
+  }
+
+  enrich(r) {
+    const accent = this.ACCENTS[r.cuisine] || '#c4552d';
+    const custom = (this.state && this.state.customTags && this.state.customTags[r.id]) || [];
+    const photo = (this.state && this.state.photos && this.state.photos['photo-' + r.id]) || null;
+    return Object.assign({}, r, {
+      accent,
+      slotId: 'photo-' + r.id,
+      photo,
+      thumbBg: photo ? '#e9dfcc url("' + photo + '") center/cover no-repeat' : 'repeating-linear-gradient(45deg,#efe7d8,#efe7d8 10px,#e9dfcc 10px,#e9dfcc 20px)',
+      thumbLabel: photo ? '' : 'dish photo',
+      tags: (r.tags || []).concat(custom.filter(t => !(r.tags || []).includes(t))),
+      meta: r.time + ' \u00b7 ' + r.difficulty + (r.rating ? ' \u00b7 \u2605 ' + r.rating : ''),
+      sourceLabel: r.source ? 'web' : (r.custom ? '\u2726 yours' : ''),
+      open: () => this.openRecipe(r.id)
+    });
+  }
+
+  normalizeGen(j) {
+    return this.enrich({
+      id: 'c' + Date.now(), custom: true,
+      title: j.title || 'Untitled creation', cuisine: j.cuisine || 'Fusion',
+      mins: j.mins || 30, time: j.time || (j.mins ? j.mins + ' min' : '30 min'),
+      difficulty: j.difficulty || 'Comfortable', rating: null, reviews: 0,
+      desc: j.desc || '', tags: (j.tags || []).slice(0, 4),
+      ingredients: j.ingredients || [], steps: j.steps || [],
+      nutrition: j.nutrition || { cal: '\u2014', protein: '\u2014', carbs: '\u2014', fat: '\u2014' }
+    });
+  }
+
+  recipePrompt(params) {
+    const p = this.state.profile;
+    return 'You are a world-class chef with deep expertise in every cuisine. Invent ONE new, original recipe.\n' +
+      'Parameters: ' + JSON.stringify(params) + '\n' +
+      'User profile: ' + JSON.stringify({ favoriteCuisines: p.cuisines, diets: p.diets, allergies: p.allergies, skill: p.skill, nutritionGoal: p.goal }) + '\n' +
+      'Respect all dietary restrictions and allergies strictly. Match the skill level and time budget.\n' +
+      'Respond with ONLY valid JSON, no markdown fences, exactly this shape:\n' +
+      '{"title":"...","cuisine":"...","mins":30,"time":"30 min","difficulty":"Beginner|Comfortable|Adventurous","desc":"one enticing sentence","tags":["...","..."],"ingredients":["quantity ingredient","..."],"steps":["...","..."],"nutrition":{"cal":450,"protein":30,"carbs":40,"fat":18}}';
+  }
+
+  async callClaude(params) {
+    const text = await window.claude.complete({ messages: [{ role: 'user', content: this.recipePrompt(params) }], max_tokens: 2500 });
+    const m = text.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('no json');
+    return this.normalizeGen(JSON.parse(m[0]));
+  }
+
+  async generate() {
+    const s = this.state;
+    this.setState({ generating: true, genError: null, genRecipe: null, genSaved: false, genStatus: 'Consulting the flavor archives\u2026' });
+    try {
+      const r = await this.callClaude({ craving: s.craving || 'chef\u2019s choice', cuisine: s.createCuisine, timeBudget: s.createTime, skill: s.createSkill, ingredientsOnHand: s.onHand || 'anything' });
+      this.setState({ generating: false, genRecipe: r });
+    } catch (e) {
+      this.setState({ generating: false, genError: 'Generation hiccuped \u2014 give it another try in a moment.' });
+    }
+  }
+
+  async generateDaily() {
+    const s = this.state;
+    this.setState({ dailyGenerating: true });
+    this.save('ember_daily_onhand', s.dailyOnHand);
+    try {
+      const r = await this.callClaude({ purpose: 'daily personalized recipe of the day, surprise and delight', timeBudget: s.profile.time, ingredientsUsuallyOnHand: s.dailyOnHand || 'typical pantry' });
+      const daily = { date: new Date().toDateString(), recipe: r };
+      this.save('ember_daily', daily);
+      this.setState({ dailyGenerating: false, daily });
+    } catch (e) {
+      this.setState({ dailyGenerating: false });
+    }
+  }
+
+  saveGenerated() {
+    const r = this.state.genRecipe;
+    if (!r || this.state.genSaved) return;
+    this.setState(s => {
+      const customRecipes = s.customRecipes.concat(r);
+      const savedIds = s.savedIds.concat(r.id);
+      this.save('ember_custom', customRecipes); this.save('ember_saved', savedIds);
+      return { customRecipes, savedIds, genSaved: true };
+    });
+  }
+
+  ensureDailySaved() {
+    const d = this.state.daily;
+    if (!d || !d.recipe) return null;
+    if (!this.findRecipe(d.recipe.id)) {
+      const customRecipes = this.state.customRecipes.concat(d.recipe);
+      this.save('ember_custom', customRecipes);
+      this.setState({ customRecipes });
+    }
+    return d.recipe;
+  }
+
+  renderVals() {
+    const s = this.state;
+    const p = s.profile;
+    const all = this.allRecipes().map(r => this.enrich(r));
+    const screen = s.screen;
+
+    // hero = daily recipe if generated today, else featured
+    const dailyRec = s.daily && s.daily.recipe ? this.enrich(s.daily.recipe) : null;
+    const hero = dailyRec || all.find(r => r.id === 'r3');
+
+    // discover filtering
+    const q = s.searchQuery.trim().toLowerCase();
+    let filtered = all.filter(r => !r.source);
+    if (s.activeCuisine !== 'All') filtered = filtered.filter(r => r.cuisine === s.activeCuisine);
+    if (q) filtered = all.filter(r => (r.title + ' ' + r.cuisine + ' ' + r.tags.join(' ') + ' ' + r.ingredients.join(' ')).toLowerCase().includes(q));
+    const webRecipes = all.filter(r => r.source && s.sites.includes(r.source)).map(r => ({ title: r.title, source: r.source, open: r.open, thumbBg: r.thumbBg }));
+
+    const cuisineChips = ['All'].concat(this.CUISINES.slice(0, 7)).map(c =>
+      this.chip(c, s.activeCuisine === c, '#241a12', () => this.setState({ activeCuisine: c, searchQuery: '' })));
+
+    // detail
+    const active = s.activeId ? this.enrich(this.findRecipe(s.activeId) || this.seed[0]) : this.enrich(this.seed[0]);
+    const activeIsSaved = s.savedIds.includes(active.id);
+    const collectionChips = Object.keys(s.collections).map(name =>
+      this.chip(name + (s.collections[name].includes(active.id) ? ' \u2713' : ''), s.collections[name].includes(active.id), '#2f7a4d', () => this.toggleCollection(name, active.id), true));
+
+    // create chips
+    const mkSingle = (list, cur, key, color) => list.map(v => this.chip(v, cur === v, color || '#241a12', () => this.setState({ [key]: v }), true));
+    const createCuisineChips = mkSingle(['Surprise me'].concat(this.CUISINES), s.createCuisine, 'createCuisine', '#2f7a4d');
+    const createTimeChips = mkSingle(this.TIMES, s.createTime, 'createTime');
+    const createSkillChips = mkSingle(this.SKILLS, s.createSkill, 'createSkill');
+
+    // daily chips (bound to profile)
+    const dailyCuisineChips = this.CUISINES.slice(0, 8).map(c => this.chip(c, p.cuisines.includes(c), '#c4552d', () => this.toggleProfileArr('cuisines', c), true));
+    const dailyDietChips = this.DIETS.slice(1).map(d => this.chip(d, p.diets.includes(d), '#2f7a4d', () => this.toggleProfileArr('diets', d), true));
+    const dailyTimeChips = this.TIMES.map(t => this.chip(t, p.time === t, '#241a12', () => this.setProfile({ time: t }), true));
+    const dailySkillChips = this.SKILLS.map(v => this.chip(v, p.skill === v, '#241a12', () => this.setProfile({ skill: v }), true));
+    const dailyGoalChips = this.GOALS.map(g => this.chip(g, p.goal === g, '#9a6a10', () => this.setProfile({ goal: g }), true));
+
+    // cookbook
+    const savedRecipes = all.filter(r => s.savedIds.includes(r.id));
+    const cq = s.cbQuery.trim().toLowerCase();
+    let cb = savedRecipes;
+    if (s.cbCollection !== 'All') cb = cb.filter(r => (s.collections[s.cbCollection] || []).includes(r.id));
+    if (s.cbTags.length) cb = cb.filter(r => s.cbTags.every(t => r.tags.includes(t)));
+    if (cq) cb = cb.filter(r => (r.title + ' ' + r.cuisine + ' ' + r.tags.join(' ')).toLowerCase().includes(cq));
+    const cbRecipes = cb.map(r => Object.assign({}, r, {
+      collectionsLabel: Object.keys(s.collections).filter(n => s.collections[n].includes(r.id)).join(', ')
+    }));
+    const allTags = Array.from(new Set(savedRecipes.flatMap(r => r.tags))).slice(0, 10);
+    const cbCollectionChips = ['All'].concat(Object.keys(s.collections)).map(n =>
+      this.chip(n, s.cbCollection === n, '#241a12', () => this.setState({ cbCollection: n }), true));
+    const cbTagChips = allTags.map(t => this.chip(t, s.cbTags.includes(t), '#c4552d', () => this.setState(st => ({ cbTags: st.cbTags.includes(t) ? st.cbTags.filter(x => x !== t) : st.cbTags.concat(t) })), true));
+
+    // wizard
+    const step = s.wizardStep;
+    const wizardDots = [1, 2, 3, 4].map(i => ({ style: { height: '5px', flex: 1, borderRadius: '99px', background: i <= step ? '#c4552d' : 'rgba(36,26,18,0.15)' } }));
+    const pCuisineChips = this.CUISINES.map(c => this.chip(c, p.cuisines.includes(c), '#c4552d', () => this.toggleProfileArr('cuisines', c), true));
+    const pDietChips = this.DIETS.map(d => this.chip(d, d === 'None' ? p.diets.length === 0 : p.diets.includes(d), '#2f7a4d', () => d === 'None' ? this.setProfile({ diets: [] }) : this.toggleProfileArr('diets', d), true));
+    const pSkillChips = this.SKILLS.map(v => this.chip(v, p.skill === v, '#241a12', () => this.setProfile({ skill: v }), true));
+    const pTimeChips = this.TIMES.map(t => this.chip(t, p.time === t, '#241a12', () => this.setProfile({ time: t }), true));
+    const pGoalChips = this.GOALS.map(g => this.chip(g, p.goal === g, '#9a6a10', () => this.setProfile({ goal: g }), true));
+
+    const genRecipe = s.genRecipe || { title: '', cuisine: '', desc: '', meta: '', ingredients: [], steps: [], nutrition: {} };
+
+    return {
+      // nav
+      navDiscoverStyle: this.navStyle(screen === 'discover' || screen === 'detail'),
+      navCreateStyle: this.navStyle(screen === 'create'),
+      navDailyStyle: this.navStyle(screen === 'daily'),
+      navCookbookStyle: this.navStyle(screen === 'cookbook'),
+      goDiscover: () => this.go('discover'), goCreate: () => this.go('create'),
+      goDaily: () => this.go('daily'), goCookbook: () => this.go('cookbook'),
+      goProfile: () => { this.setState({ wizardStep: 1 }); this.go('profile'); },
+      goBack: () => this.go(s.prevScreen === 'detail' ? 'discover' : s.prevScreen),
+      profileInitial: (s.photos && s.photos.avatar) ? '' : (p.name || 'You').trim().charAt(0).toUpperCase(),
+      avatarStyle: {
+        width: '36px', height: '36px', borderRadius: '50%', color: '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '13.5px', fontWeight: 800, cursor: 'pointer', flex: 'none',
+        background: (s.photos && s.photos.avatar) ? '#c4552d url("' + s.photos.avatar + '") center/cover no-repeat' : '#c4552d'
+      },
+      savedCount: s.savedIds.length,
+      todayLabel: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+
+      // screens
+      isDiscover: screen === 'discover', isDetail: screen === 'detail', isCreate: screen === 'create',
+      isDaily: screen === 'daily', isCookbook: screen === 'cookbook', isProfile: screen === 'profile',
+
+      // discover
+      heroTitle: hero.title, heroDesc: dailyRec ? hero.desc : 'Built around your love of ' + (p.cuisines[0] || 'bold') + ' flavors, ready in the ' + (p.time || '30 min') + ' you have tonight.',
+      heroSaveLabel: s.savedIds.includes(hero.id) ? '\u2713 Saved' : '\u2661 Save to cookbook',
+      heroThumbBg: hero.photo ? '#b04c26 url("' + hero.photo + '") center/cover no-repeat' : 'repeating-linear-gradient(45deg,#a8462293,#a8462293 12px,#b34d2693 12px,#b34d2693 24px) #b04c26',
+      heroThumbLabel: hero.photo ? '' : 'hero dish photo',
+      openHero: () => { if (dailyRec) this.ensureDailySaved(); this.openRecipe(hero.id); },
+      saveHero: () => { if (dailyRec) this.ensureDailySaved(); this.toggleSave(hero.id); },
+      searchQuery: s.searchQuery, onSearchChange: e => this.setState({ searchQuery: e.target.value }),
+      searchToCreate: () => { this.setState({ craving: s.searchQuery }); this.go('create'); },
+      cuisineChips, filteredRecipes: filtered, webRecipes,
+      showWeb: (this.props.showWebSection ?? true) && !q,
+      siteChips: s.sites.map(d => ({ label: d, remove: () => this.removeSite(d) })),
+      newSite: s.newSite, onNewSiteChange: e => this.setState({ newSite: e.target.value, siteError: null }),
+      onNewSiteKey: e => { if (e.key === 'Enter') this.addSite(); },
+      addSite: () => this.addSite(),
+      siteLoading: !!s.siteLoading, siteLoadingLabel: 'fetching the latest from ' + (s.siteLoading || '') + '\u2026',
+      siteError: s.siteError,
+      resultsHeading: q ? 'Results for \u201c' + s.searchQuery + '\u201d' : (s.activeCuisine === 'All' ? 'Fresh from the kitchen' : s.activeCuisine + ' recipes'),
+      resultsCount: filtered.length,
+
+      // detail
+      activeRecipe: active,
+      activeSteps: active.steps.map((text, i) => ({ n: i + 1, text })),
+      activeIsSaved, collectionChips,
+      myTagChips: ((s.customTags[active.id]) || []).map(t => ({ label: t, remove: () => this.removeTag(active.id, t) })),
+      newTag: s.newTag, onNewTagChange: e => this.setState({ newTag: e.target.value }),
+      onNewTagKey: e => { if (e.key === 'Enter') this.addTag(); },
+      addTag: () => this.addTag(),
+      toggleSaveActive: () => this.toggleSave(active.id),
+      saveBtnLabel: activeIsSaved ? '\u2713 In your cookbook' : '\u2661 Save to cookbook',
+      saveBtnStyle: { fontFamily: 'inherit', fontSize: '13.5px', fontWeight: 800, cursor: 'pointer', padding: '13px 24px', borderRadius: '999px', border: 'none', background: activeIsSaved ? '#2f7a4d' : '#c4552d', color: '#fff' },
+
+      // create
+      three: 3,
+      craving: s.craving, onCravingChange: e => this.setState({ craving: e.target.value }),
+      onHand: s.onHand, onHandChange: e => this.setState({ onHand: e.target.value }),
+      createCuisineChips, createTimeChips, createSkillChips,
+      profileSummary: [(p.diets.length ? p.diets.join(', ') : 'no restrictions'), p.allergies ? 'avoids ' + p.allergies : null, p.goal !== 'No goal' ? p.goal.toLowerCase() : null].filter(Boolean).join(' \u00b7 '),
+      generate: () => this.generate(), regenerate: () => this.generate(),
+      generating: s.generating, genStatus: s.genStatus || 'Working\u2026',
+      notGeneratingNoResult: !s.generating && !s.genRecipe,
+      hasGenRecipe: !!s.genRecipe && !s.generating,
+      genRecipe, genSteps: (genRecipe.steps || []).map((text, i) => ({ n: i + 1, text })),
+      genError: s.genError,
+      saveGenerated: () => this.saveGenerated(),
+      genSaveLabel: s.genSaved ? '\u2713 Saved to cookbook' : '\u2661 Save to cookbook',
+
+      // daily
+      dailyCuisineChips, dailyDietChips, dailyTimeChips, dailySkillChips, dailyGoalChips,
+      dailyOnHand: s.dailyOnHand, onDailyOnHandChange: e => this.setState({ dailyOnHand: e.target.value }),
+      dailyGenerating: s.dailyGenerating,
+      hasDaily: !!dailyRec && !s.dailyGenerating,
+      dailyRecipe: dailyRec || { title: 'No recipe yet today', cuisine: '\u2014', meta: '', desc: 'Set your parameters on the left, then generate today\u2019s personal recipe.' },
+      dailyBtnLabel: dailyRec ? '\u21bb Regenerate today\u2019s' : '\u2726 Generate today\u2019s recipe',
+      dailyThumbBg: dailyRec && dailyRec.photo ? '#2b2018 url("' + dailyRec.photo + '") center/cover no-repeat' : 'repeating-linear-gradient(45deg,#2b2018,#2b2018 12px,#332821 12px,#332821 24px)',
+      dailyThumbLabel: dailyRec && dailyRec.photo ? '' : 'dish photo',
+      toggleEmailDaily: () => { if (p.email) this.setProfile({ emailDaily: !p.emailDaily }); else { this.setState({ wizardStep: 1 }); this.go('profile'); } },
+      emailToggleLabel: p.emailDaily ? '\u2713 Emailing daily to ' + p.email : (p.email ? 'Email my daily recipe' : '+ Add your email to enable'),
+      emailToggleStyle: {
+        fontFamily: 'inherit', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer',
+        padding: '9px 16px', borderRadius: '999px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis',
+        border: p.emailDaily ? '1.5px solid transparent' : '1.5px solid rgba(36,26,18,0.22)',
+        background: p.emailDaily ? '#2f7a4d' : 'transparent',
+        color: p.emailDaily ? '#fff' : 'rgba(36,26,18,0.75)'
+      },
+      emailDeliveryNote: p.emailDaily ? 'Each morning Ember will autonomously create your recipe and send it to your inbox. (Prototype: delivery is simulated.)' : 'Turn on to get your autonomously created recipe in your inbox every morning.',
+      generateDaily: () => this.generateDaily(),
+      openDaily: () => { const r = this.ensureDailySaved(); if (r) this.openRecipe(r.id); },
+      saveDaily: () => { const r = this.ensureDailySaved(); if (r) this.toggleSave(r.id); },
+      dailySaveLabel: dailyRec && s.savedIds.includes(dailyRec.id) ? '\u2713 Saved' : '\u2661 Save',
+
+      // cookbook
+      possessive: p.name ? p.name + '\u2019s' : 'Your',
+      cbQuery: s.cbQuery, onCbQueryChange: e => this.setState({ cbQuery: e.target.value }),
+      cbCollectionChips, cbTagChips, cbRecipes, cbEmpty: cbRecipes.length === 0,
+
+      // wizard
+      wizardTitle: p.onboarded ? 'Your taste profile' : 'Set up your taste profile',
+      wizardDots, wStep1: step === 1, wStep2: step === 2, wStep3: step === 3, wStep4: step === 4,
+      pName: p.name, onPNameChange: e => this.setProfile({ name: e.target.value }),
+      pEmail: p.email || '', onPEmailChange: e => this.setProfile({ email: e.target.value }),
+      pAllergies: p.allergies, onPAllergiesChange: e => this.setProfile({ allergies: e.target.value }),
+      pCuisineChips, pDietChips, pSkillChips, pTimeChips, pGoalChips,
+      profileReview: (p.name || 'You') + (p.email ? ' \u00b7 ' + p.email : '') + ' \u00b7 loves ' + (p.cuisines.join(', ') || 'everything') + ' \u00b7 ' + (p.diets.length ? p.diets.join(', ') : 'no restrictions') + (p.allergies ? ' \u00b7 avoids ' + p.allergies : '') + ' \u00b7 ' + p.skill + ' cook \u00b7 ' + p.time + ' weeknights \u00b7 ' + p.goal,
+      wizardBack: () => this.setState(st => ({ wizardStep: Math.max(1, st.wizardStep - 1) })),
+      wizardBackStyle: { fontFamily: 'inherit', fontSize: '13.5px', fontWeight: 700, cursor: 'pointer', padding: '12px 22px', borderRadius: '999px', border: '1.5px solid rgba(36,26,18,0.25)', background: 'none', color: 'rgba(36,26,18,0.7)', visibility: step === 1 ? 'hidden' : 'visible' },
+      wizardNext: () => { if (step < 4) this.setState({ wizardStep: step + 1 }); else { this.setProfile({ onboarded: true }); this.go('discover'); } },
+      wizardNextLabel: step === 4 ? '\u2713 Finish setup' : 'Continue \u2192'
+    };
+  }
+}
+
+</script>
+</body>
+</html>
