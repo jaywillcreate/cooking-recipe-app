@@ -1,0 +1,40 @@
+.admin {
+  --bg: #faf5ec; --ink: #241a12; --rust: #c4552d; --gold: #e8a13c; --green: #2f7a4d;
+  --line: rgba(36, 26, 18, 0.12); --muted: rgba(36, 26, 18, 0.6);
+  min-height: 100vh; background: var(--bg); color: var(--ink);
+}
+.admin a { color: var(--rust); text-decoration: none; }
+.admin-top { display: flex; align-items: center; justify-content: space-between; max-width: 1140px; margin: 0 auto; padding: 16px 20px; }
+.admin-brand { font-weight: 900; letter-spacing: -0.5px; font-size: 20px; }
+.admin-brand span { color: var(--rust); }
+.admin-tabs { display: flex; gap: 6px; }
+.admin-tabs a { padding: 8px 16px; border-radius: 999px; font-weight: 700; font-size: 13.5px; color: var(--muted); }
+.admin-tabs a.on { background: var(--gold); color: var(--ink); }
+.admin-wrap { max-width: 1140px; margin: 0 auto; padding: 8px 20px 60px; }
+.admin-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 18px; }
+.admin h1 { font-size: 26px; font-weight: 800; margin: 18px 0; }
+.admin h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: #9a6a10; margin: 0 0 12px; }
+.admin-grid { display: grid; gap: 16px; }
+.admin-kpis { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.admin-kpi { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.admin-kpi b { display: block; font-size: 28px; font-weight: 800; }
+.admin-kpi small { color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; font-size: 10.5px; font-weight: 800; }
+.admin table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.admin th, .admin td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.admin th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.admin .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.admin .pill.active { background: rgba(47, 122, 77, 0.14); color: var(--green); }
+.admin .pill.suspended { background: rgba(196, 85, 45, 0.14); color: var(--rust); }
+.admin .pill.admin-role { background: var(--ink); color: #fff; }
+.admin input, .admin select, .admin textarea {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; background: #fff; font-family: inherit;
+}
+.admin textarea { min-height: 90px; resize: vertical; }
+.admin .btn { background: var(--rust); color: #fff; border: none; padding: 9px 16px; border-radius: 999px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
+.admin .btn.ghost { background: transparent; border: 1.5px solid var(--line); color: var(--ink); }
+.admin .btn.sm { padding: 6px 12px; font-size: 12px; }
+.admin .err { background: rgba(196, 85, 45, 0.1); color: #8c3b2e; padding: 10px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 12px; }
+.admin .bars { display: flex; gap: 6px; align-items: flex-end; }
+.admin .bar { flex: 1; background: var(--gold); border-radius: 6px 6px 0 0; min-height: 4px; }
+.admin code { background: rgba(36, 26, 18, 0.06); padding: 2px 6px; border-radius: 6px; font-family: var(--font-mono), monospace; font-size: 12px; }
+.admin-muted { color: var(--muted); }
