@@ -51,6 +51,17 @@ export const config = {
 
   cronSecret: process.env.CRON_SECRET,
 
+  // Google OAuth ("Sign in with Google"). Optional — the button/routes are
+  // active only when both are set.
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  get googleEnabled(): boolean {
+    return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  },
+  get googleRedirectUri(): string {
+    return `${this.appOrigin}/api/auth/google/callback`;
+  },
+
   siteAllowlist: (process.env.SITE_ALLOWLIST ?? '')
     .split(',')
     .map((s) => s.trim().toLowerCase())

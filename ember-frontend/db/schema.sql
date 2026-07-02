@@ -9,7 +9,8 @@ CREATE EXTENSION IF NOT EXISTS citext;
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email CITEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
+  password_hash TEXT,                 -- NULL for OAuth-only (Google) accounts
+  google_id TEXT,                     -- Google "sub" when linked
   role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user','admin')),
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','suspended','deleted')),
   email_verified BOOLEAN NOT NULL DEFAULT FALSE,
@@ -17,6 +18,10 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Idempotent upgrades for databases created before Google login was added:
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

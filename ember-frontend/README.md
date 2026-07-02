@@ -64,6 +64,25 @@ npm run seed           # inserts the 10-recipe catalog
 npm run create-admin -- you@ember.app 'a-long-strong-password'
 ```
 
+### 5b. (Optional) Enable "Sign in with Google"
+1. In **Google Cloud Console** → APIs & Services → **Credentials** → **Create
+   OAuth client ID** → application type **Web application**.
+2. Under **Authorized redirect URIs**, add exactly:
+   `https://YOUR-DOMAIN/api/auth/google/callback` (use your production
+   `APP_ORIGIN`; add `http://localhost:3000/api/auth/google/callback` too for
+   local dev).
+3. Copy the Client ID + Secret into env vars:
+   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (server)
+   - `NEXT_PUBLIC_GOOGLE_ENABLED=true` (shows the button — this one is read at
+     **build** time, so redeploy after setting it)
+   - `APP_ORIGIN` **must** be your stable production URL (not a per-deploy
+     preview URL), matching the redirect URI above.
+
+New Google users land in the profile wizard (name + avatar prefilled from
+Google); returning ones go straight to Discover. If someone signed up with
+email/password and later uses Google with the same address, the accounts link
+automatically.
+
 ### 6. Deploy
 Vercel deploys on push. The **daily cron** (`vercel.json`) is registered
 automatically and runs `/api/cron/daily` once a day, generating + emailing each
