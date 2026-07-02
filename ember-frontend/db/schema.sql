@@ -74,9 +74,9 @@ CREATE TABLE IF NOT EXISTS recipes (
 CREATE INDEX IF NOT EXISTS idx_recipes_owner ON recipes(owner_id);
 CREATE INDEX IF NOT EXISTS idx_recipes_origin ON recipes(origin);
 CREATE INDEX IF NOT EXISTS idx_recipes_source ON recipes(source);
-CREATE INDEX IF NOT EXISTS idx_recipes_fts ON recipes USING GIN (
-  to_tsvector('english', coalesce(title,'') || ' ' || coalesce(cuisine,'') || ' ' ||
-    array_to_string(tags,' ') || ' ' || array_to_string(ingredients,' ')));
+-- (Full-text search runs on the query's to_tsvector/ILIKE expression directly;
+--  no functional GIN index — Prisma Postgres rejects it as non-IMMUTABLE, and
+--  it isn't needed at this scale.)
 
 CREATE TABLE IF NOT EXISTS saves (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
