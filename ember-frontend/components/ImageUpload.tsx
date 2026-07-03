@@ -9,6 +9,7 @@ interface Props {
   shape?: 'rect' | 'circle';
   height?: number | string;
   currentUrl?: string | null;
+  fallbackUrl?: string | null; // shown (e.g. a stock food photo) when no user photo
   placeholder?: string;
   onUploaded: (url: string) => void;
 }
@@ -20,7 +21,7 @@ const MAX = 6 * 1024 * 1024;
  * Reads the file to a base64 data URL and POSTs it to /api/photos, which
  * validates and stores it, returning a CDN-ready URL.
  */
-export function ImageUpload({ target, shape = 'rect', height = 260, currentUrl, placeholder, onUploaded }: Props) {
+export function ImageUpload({ target, shape = 'rect', height = 260, currentUrl, fallbackUrl, placeholder, onUploaded }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,8 +58,9 @@ export function ImageUpload({ target, shape = 'rect', height = 260, currentUrl, 
   );
 
   const radius = shape === 'circle' ? '50%' : 0;
-  const bg = currentUrl
-    ? `#e9dfcc url("${currentUrl}") center/cover no-repeat`
+  const displayUrl = currentUrl || fallbackUrl;
+  const bg = displayUrl
+    ? `#e9dfcc url("${displayUrl}") center/cover no-repeat`
     : 'repeating-linear-gradient(45deg,#efe7d8,#efe7d8 14px,#e9dfcc 14px,#e9dfcc 28px)';
 
   return (
@@ -104,13 +106,25 @@ export function ImageUpload({ target, shape = 'rect', height = 260, currentUrl, 
       {busy ? (
         <Spinner size={shape === 'circle' ? 22 : 30} />
       ) : (
-        !currentUrl && (
+        !displayUrl && (
           <span style={{ fontFamily: mono, fontSize: shape === 'circle' ? 10 : 12, color: 'rgba(36,26,18,0.5)', textAlign: 'center', padding: 8 }}>
             {error || placeholder || 'Drop or click to add a photo'}
           </span>
         )
       )}
-      {currentUrl && error && (
+      {/* Persistent add/replace affordance over any image (rect only). */}
+      {!busy && shape === 'rect' && displayUrl && (
+        <span
+          style={{
+            position: 'absolute', bottom: 10, right: 10, fontSize: 12, fontWeight: 700,
+            color: C.ink, background: 'rgba(255,255,255,0.9)', padding: '6px 12px', borderRadius: 999,
+            boxShadow: '0 1px 4px rgba(0,0,0,.15)', pointerEvents: 'none',
+          }}
+        >
+          {error ? error : currentUrl ? '📷 Replace photo' : '📷 Add your photo'}
+        </span>
+      )}
+      {shape === 'circle' && currentUrl && error && (
         <span style={{ position: 'absolute', bottom: 6, fontSize: 10, color: C.error, background: '#fff9', padding: '2px 6px', borderRadius: 6 }}>{error}</span>
       )}
     </div>

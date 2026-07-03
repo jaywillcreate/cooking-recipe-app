@@ -96,6 +96,8 @@ export const recipeApi = {
     return api<{ recipes: Recipe[] }>(`/api/recipes?${qs.toString()}`);
   },
   get: (id: string) => api<{ recipe: Recipe }>(`/api/recipes/${id}`),
+  email: (id: string, body: { to: string; note?: string }) =>
+    api<{ sent: number; recipients: number; delivered: boolean }>(`/api/recipes/${id}/email`, { body }),
 };
 
 export const cookbookApi = {

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { recipeApi, sitesApi, dailyApi, cookbookApi, ApiError } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import type { Recipe } from '@/lib/types';
-import { C, CUISINES, mono, chipStyle, todayLabel } from '@/lib/tokens';
+import { C, CUISINES, mono, chipStyle, todayLabel, recipeImageUrl } from '@/lib/tokens';
 import { RecipeCard } from '@/components/RecipeCard';
 import { Spinner } from '@/components/Spinner';
 
@@ -127,9 +127,8 @@ export default function DiscoverPage() {
               </button>
             </div>
           </div>
-          <div style={{ background: hero.photo ? `#b04c26 url("${hero.photo}") center/cover no-repeat` : 'repeating-linear-gradient(45deg,#a8462293,#a8462293 12px,#b34d2693 12px,#b34d2693 24px) #b04c26', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 280 }}>
-            {!hero.photo && <span style={{ fontFamily: mono, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>hero dish photo</span>}
-          </div>
+          <div style={{ background: `#b04c26 url("${recipeImageUrl(hero)}") center/cover no-repeat`, minHeight: 280 }} />
+
         </div>
       )}
 
@@ -205,7 +204,7 @@ export default function DiscoverPage() {
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 12 }}>
             {webRecipes.map((w) => (
               <div key={w.id} className="ember-webmini" onClick={() => router.push(`/recipe/${w.id}`)} style={{ flex: 1, minWidth: 240, display: 'flex', gap: 12, alignItems: 'center', padding: 12, border: `1px solid ${C.line}`, borderRadius: 10, cursor: 'pointer' }}>
-                <div style={{ width: 52, height: 52, borderRadius: 8, flex: 'none', background: w.photo ? `#e9dfcc url("${w.photo}") center/cover no-repeat` : 'repeating-linear-gradient(45deg,#efe7d8,#efe7d8 10px,#e9dfcc 10px,#e9dfcc 20px)' }} />
+                <div style={{ width: 52, height: 52, borderRadius: 8, flex: 'none', background: `#e9dfcc url("${recipeImageUrl(w)}") center/cover no-repeat` }} />
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25 }}>{w.title}</div>
                   <div style={{ fontFamily: mono, fontSize: 10.5, color: C.green, marginTop: 3 }}>{w.source}</div>

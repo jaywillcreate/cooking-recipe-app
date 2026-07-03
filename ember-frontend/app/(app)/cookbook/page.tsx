@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation';
 import { recipeApi, cookbookApi } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import type { Collection, Recipe } from '@/lib/types';
-import { C, mono, chipStyle, thumbBackground } from '@/lib/tokens';
+import { C, chipStyle } from '@/lib/tokens';
 import { Spinner } from '@/components/Spinner';
+import { RecipeCard } from '@/components/RecipeCard';
 
 export default function CookbookPage() {
   const router = useRouter();
@@ -81,19 +82,7 @@ export default function CookbookPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(255px,1fr))', gap: 18 }}>
           {filtered.map((r) => (
-            <div key={r.id} className="ember-card" onClick={() => router.push(`/recipe/${r.id}`)} style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 14, overflow: 'hidden', cursor: 'pointer', borderTop: `4px solid ${r.accent}` }}>
-              <div style={{ height: 120, background: thumbBackground(r.photo), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {!r.photo && <span style={{ fontFamily: mono, fontSize: 11, color: 'rgba(36,26,18,0.4)' }}>dish photo</span>}
-              </div>
-              <div style={{ padding: '15px 17px 17px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 1.3, textTransform: 'uppercase', color: r.accent }}>{r.cuisine}</span>
-                  <span style={{ fontSize: 11, fontFamily: mono, color: 'rgba(36,26,18,0.5)' }}>{collectionOf(r.id).join(', ')}</span>
-                </div>
-                <div style={{ fontSize: 16.5, fontWeight: 700, lineHeight: 1.22, letterSpacing: -0.3, marginBottom: 7 }}>{r.title}</div>
-                <div style={{ fontSize: 12.5, color: C.muted, fontWeight: 500 }}>{r.meta}</div>
-              </div>
-            </div>
+            <RecipeCard key={r.id} r={r} thumbHeight={120} rightLabel={collectionOf(r.id).join(', ')} />
           ))}
         </div>
       )}

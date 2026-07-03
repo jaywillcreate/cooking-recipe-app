@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { recipeApi, cookbookApi } from '@/lib/api';
+import { recipeApi, cookbookApi, ApiError } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import type { Collection, Recipe } from '@/lib/types';
-import { C, chipStyle } from '@/lib/tokens';
+import { C, chipStyle, recipeImageUrl } from '@/lib/tokens';
 import { ImageUpload } from '@/components/ImageUpload';
 import { Spinner } from '@/components/Spinner';
 
@@ -16,6 +16,35 @@ export default function RecipeDetailPage() {
   const [saved, setSaved] = useState(false);
   const [newTag, setNewTag] = useState('');
   const [notFound, setNotFound] = useState(false);
+  // Email
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [emailNote, setEmailNote] = useState('');
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailMsg, setEmailMsg] = useState<string | null>(null);
+  const [emailErr, setEmailErr] = useState<string | null>(null);
+
+  async function sendRecipeEmail(e: React.FormEvent) {
+    e.preventDefault();
+    if (!recipe) return;
+    setEmailErr(null);
+    setEmailMsg(null);
+    setEmailBusy(true);
+    try {
+      const res = await recipeApi.email(recipe.id, { to: emailTo, note: emailNote });
+      setEmailMsg(
+        res.delivered
+          ? `Sent to ${res.sent} ${res.sent === 1 ? 'person' : 'people'}.`
+          : `Prepared for ${res.sent} — but email delivery isn't turned on for this site yet, so it was logged, not delivered.`,
+      );
+      setEmailTo('');
+      setEmailNote('');
+    } catch (err) {
+      setEmailErr(err instanceof ApiError ? err.message : 'Could not send. Try again.');
+    } finally {
+      setEmailBusy(false);
+    }
+  }
 
   async function load() {
     try {
@@ -103,6 +132,7 @@ export default function RecipeDetailPage() {
             shape="rect"
             height={260}
             currentUrl={recipe.photo}
+            fallbackUrl={recipeImageUrl({ ...recipe, photo: null })}
             placeholder="Drop or click to add your dish photo"
             onUploaded={(url) => setRecipe({ ...recipe, photo: url })}
           />
@@ -127,9 +157,30 @@ export default function RecipeDetailPage() {
               <button onClick={toggleSave} style={{ fontFamily: 'inherit', fontSize: 13.5, fontWeight: 800, cursor: 'pointer', padding: '13px 24px', borderRadius: 999, border: 'none', background: saved ? C.green : C.rust, color: '#fff' }}>
                 {saved ? '✓ In your cookbook' : '♡ Save to cookbook'}
               </button>
+              <button onClick={() => { setEmailOpen((o) => !o); setEmailMsg(null); setEmailErr(null); }} style={{ fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: '11px 24px', borderRadius: 999, border: `1.5px solid ${C.line22}`, background: 'none', color: C.ink }}>
+                ✉ Email recipe
+              </button>
               <div style={{ fontSize: 12, color: C.muted55, fontWeight: 500, textAlign: 'center' }}>{recipe.meta}</div>
             </div>
           </div>
+
+          {emailOpen && (
+            <form onSubmit={sendRecipeEmail} style={{ marginTop: 16, padding: '16px 18px', background: C.bg, borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>Email this recipe</div>
+              {emailMsg && <div style={{ background: 'rgba(47,122,77,0.12)', color: C.green, padding: '9px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 600 }}>{emailMsg}</div>}
+              {emailErr && <div style={{ background: 'rgba(196,85,45,0.1)', color: '#8c3b2e', padding: '9px 12px', borderRadius: 8, fontSize: 12.5 }}>{emailErr}</div>}
+              <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="Recipient email(s) — comma-separated, up to 5" style={{ width: '100%', boxSizing: 'border-box', border: `1.5px solid ${C.line22}`, borderRadius: 10, padding: '11px 13px', fontFamily: 'inherit', fontSize: 14, background: '#fff', color: C.ink }} />
+              <input value={emailNote} onChange={(e) => setEmailNote(e.target.value)} placeholder="Add a note (optional)" style={{ width: '100%', boxSizing: 'border-box', border: `1.5px solid ${C.line22}`, borderRadius: 10, padding: '11px 13px', fontFamily: 'inherit', fontSize: 14, background: '#fff', color: C.ink }} />
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <button type="submit" disabled={emailBusy} style={{ background: C.rust, color: '#fff', fontWeight: 700, fontSize: 13.5, padding: '10px 22px', borderRadius: 999, border: 'none', cursor: emailBusy ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {emailBusy && <Spinner size={14} color="#fff" />}Send
+                </button>
+                <button type="button" onClick={() => { setEmailTo(useApp.getState().user?.email ?? ''); }} style={{ background: 'none', border: 'none', color: C.rust, fontWeight: 600, fontSize: 12.5, cursor: 'pointer' }}>
+                  Email it to me
+                </button>
+              </div>
+            </form>
+          )}
 
           {saved && (
             <div style={{ marginTop: 18, padding: '14px 16px', background: C.bg, borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>

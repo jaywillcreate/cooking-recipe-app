@@ -1,7 +1,8 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import type { Recipe } from '@/lib/types';
-import { C, mono, thumbBackground } from '@/lib/tokens';
+import { C, mono } from '@/lib/tokens';
+import { RecipeThumb } from './RecipeThumb';
 
 /** Discover/Cookbook recipe card (photo, cuisine, source/collections, title, meta). */
 export function RecipeCard({
@@ -27,17 +28,7 @@ export function RecipeCard({
         borderTop: `4px solid ${r.accent}`,
       }}
     >
-      <div
-        style={{
-          height: thumbHeight,
-          background: thumbBackground(r.photo),
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {!r.photo && <span style={{ fontFamily: mono, fontSize: 11, color: 'rgba(36,26,18,0.4)' }}>dish photo</span>}
-      </div>
+      <RecipeThumb recipe={r} height={thumbHeight} />
       <div style={{ padding: '15px 17px 17px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
           <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 1.3, textTransform: 'uppercase', color: r.accent }}>

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { dailyApi, cookbookApi } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import type { Profile, Recipe } from '@/lib/types';
-import { C, CUISINES, DIETS, TIMES, SKILLS, GOALS, mono, chipStyle, todayLabel } from '@/lib/tokens';
+import { C, CUISINES, DIETS, TIMES, SKILLS, GOALS, chipStyle, todayLabel, recipeImageUrl } from '@/lib/tokens';
 import { Spinner } from '@/components/Spinner';
 
 type Daily = (Recipe & { emailedAt?: string | null }) | null;
@@ -158,9 +158,7 @@ export default function DailyPage() {
 
           {daily && !generating && (
             <div style={{ background: C.dark, color: C.bg, borderRadius: 18, overflow: 'hidden' }}>
-              <div style={{ height: 190, background: daily.photo ? `#2b2018 url("${daily.photo}") center/cover no-repeat` : 'repeating-linear-gradient(45deg,#2b2018,#2b2018 12px,#332821 12px,#332821 24px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {!daily.photo && <span style={{ fontFamily: mono, fontSize: 12, color: 'rgba(250,245,236,0.4)' }}>dish photo</span>}
-              </div>
+              <div style={{ height: 190, background: `#2b2018 url("${recipeImageUrl(daily)}") center/cover no-repeat` }} />
               <div style={{ padding: '28px 32px 32px' }}>
                 <div style={{ display: 'inline-block', fontSize: 10.5, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.dark, background: C.gold, padding: '4px 11px', borderRadius: 4, marginBottom: 12 }}>
                   {daily.cuisine} · {daily.meta}
