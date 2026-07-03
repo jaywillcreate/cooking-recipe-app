@@ -36,6 +36,7 @@ export interface Profile {
   avatarUrl: string | null;
   dailyOnHand: string;
   timezone: string;
+  hasPassword: boolean;
 }
 
 export interface Collection {

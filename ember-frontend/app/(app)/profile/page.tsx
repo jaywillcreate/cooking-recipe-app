@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/lib/store';
+import { profileApi, ApiError } from '@/lib/api';
 import type { Profile } from '@/lib/types';
 import { C, CUISINES, DIETS, SKILLS, TIMES, GOALS, chipStyle } from '@/lib/tokens';
 import { ImageUpload } from '@/components/ImageUpload';
@@ -11,6 +12,14 @@ export default function ProfilePage() {
   const router = useRouter();
   const { profile, patchProfile, logout } = useApp();
   const [step, setStep] = useState(1);
+
+  // Password change
+  const [curPw, setCurPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+  const [pwErr, setPwErr] = useState<string | null>(null);
 
   if (!profile) return <div style={{ display: 'flex', justifyContent: 'center', padding: 120 }}><Spinner /></div>;
   const p = profile;
@@ -33,6 +42,27 @@ export default function ProfilePage() {
     else {
       void patchProfile({ onboarded: true });
       router.push('/discover');
+    }
+  }
+
+  async function updatePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwErr(null);
+    setPwMsg(null);
+    if (newPw.length < 10) return setPwErr('New password must be at least 10 characters.');
+    if (newPw !== confirmPw) return setPwErr('The two new passwords don’t match.');
+    setPwBusy(true);
+    try {
+      await profileApi.changePassword({ currentPassword: p.hasPassword ? curPw : undefined, newPassword: newPw });
+      setPwMsg(p.hasPassword ? 'Password updated.' : 'Password set — you can now sign in with email too.');
+      setCurPw('');
+      setNewPw('');
+      setConfirmPw('');
+      useApp.setState({ profile: { ...p, hasPassword: true } });
+    } catch (err) {
+      setPwErr(err instanceof ApiError ? err.message : 'Could not update password. Try again.');
+    } finally {
+      setPwBusy(false);
     }
   }
 
@@ -143,6 +173,27 @@ export default function ProfilePage() {
             {step === 4 ? '✓ Finish setup' : 'Continue →'}
           </button>
         </div>
+      </div>
+
+      {/* Password */}
+      <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 18, padding: '24px 32px', marginTop: 20 }}>
+        <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>{p.hasPassword ? 'Change password' : 'Set a password'}</div>
+        <div style={{ fontSize: 13, color: C.muted55, marginBottom: 18 }}>
+          {p.hasPassword ? 'Update the password you use to sign in.' : 'You signed up with Google. Set a password to also sign in with your email.'}
+        </div>
+        {pwMsg && <div style={{ background: 'rgba(47,122,77,0.12)', color: C.green, padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 14, fontWeight: 600 }}>{pwMsg}</div>}
+        {pwErr && <div style={{ background: 'rgba(196,85,45,0.1)', color: '#8c3b2e', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 14 }}>{pwErr}</div>}
+        <form onSubmit={updatePassword} style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 380 }}>
+          {p.hasPassword && (
+            <input type="password" placeholder="Current password" value={curPw} onChange={(e) => setCurPw(e.target.value)} autoComplete="current-password" style={{ ...input, fontSize: 14 }} />
+          )}
+          <input type="password" placeholder="New password (min 10 characters)" value={newPw} onChange={(e) => setNewPw(e.target.value)} autoComplete="new-password" style={{ ...input, fontSize: 14 }} />
+          <input type="password" placeholder="Confirm new password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} autoComplete="new-password" style={{ ...input, fontSize: 14 }} />
+          <button type="submit" disabled={pwBusy} style={{ alignSelf: 'flex-start', background: C.ink, color: C.bg, fontWeight: 700, fontSize: 14, padding: '12px 24px', borderRadius: 999, border: 'none', cursor: pwBusy ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {pwBusy && <Spinner size={15} color={C.bg} />}
+            {p.hasPassword ? 'Update password' : 'Set password'}
+          </button>
+        </form>
       </div>
 
       <div style={{ textAlign: 'center', marginTop: 24 }}>

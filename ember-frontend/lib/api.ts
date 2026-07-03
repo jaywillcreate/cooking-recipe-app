@@ -83,6 +83,8 @@ export const profileApi = {
   get: () => api<{ profile: Profile }>('/api/profile'),
   patch: (patch: Partial<Profile>) => api('/api/profile', { method: 'PATCH', body: patch }),
   setAvatar: (avatarUrl: string | null) => api('/api/profile/avatar', { method: 'PUT', body: { avatarUrl } }),
+  changePassword: (body: { currentPassword?: string; newPassword: string }) =>
+    api('/api/profile/password', { body }),
 };
 
 export const recipeApi = {
