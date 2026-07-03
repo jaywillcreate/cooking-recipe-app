@@ -12,10 +12,43 @@ interface SendArgs {
 }
 
 /** Whether real email delivery is configured (else it just logs). */
-export const emailConfigured = (): boolean => config.emailProvider === 'resend' && !!config.resendApiKey;
+export const emailConfigured = (): boolean =>
+  (config.emailProvider === 'resend' && !!config.resendApiKey) ||
+  (config.emailProvider === 'brevo' && !!config.brevoApiKey);
 
-/** Provider-agnostic email. `console` logs (dev); `resend` uses the HTTP API. */
+/** Parse `EMAIL_FROM` ("Name <email>" or "email") into parts. */
+function parseFrom(from: string): { name: string; email: string } {
+  const m = from.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (m) return { name: m[1] || 'Ember', email: m[2]!.trim() };
+  return { name: 'Ember', email: from.trim() };
+}
+
+/**
+ * Provider-agnostic email.
+ *  - `console` logs only (dev / not configured)
+ *  - `resend`  HTTP API (requires a verified domain)
+ *  - `brevo`   HTTP API (works with a single verified sender email — no domain)
+ */
 export async function sendEmail(args: SendArgs): Promise<void> {
+  if (config.emailProvider === 'brevo') {
+    if (!config.brevoApiKey) throw new Error('BREVO_API_KEY missing');
+    const sender = parseFrom(config.emailFrom);
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': config.brevoApiKey, 'Content-Type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        sender,
+        to: [{ email: args.to }],
+        subject: args.subject,
+        htmlContent: args.html,
+        textContent: args.text,
+        ...(args.replyTo ? { replyTo: { email: args.replyTo } } : {}),
+      }),
+    });
+    if (!res.ok) throw new Error(`Brevo failed: ${res.status} ${await res.text()}`);
+    return;
+  }
+
   if (config.emailProvider === 'resend') {
     if (!config.resendApiKey) throw new Error('RESEND_API_KEY missing');
     const res = await fetch('https://api.resend.com/emails', {
@@ -33,7 +66,8 @@ export async function sendEmail(args: SendArgs): Promise<void> {
     if (!res.ok) throw new Error(`Resend failed: ${res.status} ${await res.text()}`);
     return;
   }
-  logger.info({ to: args.to, subject: args.subject }, '[email:console] (not actually sent — set EMAIL_PROVIDER=resend)');
+
+  logger.info({ to: args.to, subject: args.subject }, '[email:console] (not actually sent — set EMAIL_PROVIDER=brevo)');
 }
 
 const esc = (s: string): string => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
