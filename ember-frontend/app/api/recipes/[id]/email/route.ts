@@ -51,7 +51,7 @@ export const POST = route(async (req: NextRequest, ctx: { params: { id: string }
     desc: String(r.desc),
     ingredients: (r.ingredients as string[]) ?? [],
     steps: (r.steps as string[]) ?? [],
-    image: (r.photo as string | null) ?? placeholderImage(String(r.cuisine), recipeId.data),
+    image: (r.photo as string | null) ?? placeholderImage(String(r.title), String(r.cuisine), recipeId.data),
   };
   const viewUrl = `${config.appOrigin}/recipe/${recipeId.data}`;
   const mail = renderRecipeEmail(recipe, sender?.name ?? '', note, viewUrl);
@@ -70,10 +70,10 @@ export const POST = route(async (req: NextRequest, ctx: { params: { id: string }
   return json({ sent, recipients: recipients.length, delivered: emailConfigured() });
 });
 
-/** Same food-photo placeholder the UI uses, computed server-side for the email. */
-function placeholderImage(cuisine: string, id: string): string {
+/** Same generated dish photo the UI uses, computed server-side for the email. */
+function placeholderImage(title: string, cuisine: string, id: string): string {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  const kw = encodeURIComponent(`${cuisine.toLowerCase().replace(/[^a-z]/g, '')},food`);
-  return `https://loremflickr.com/600/400/${kw}?lock=${h % 100000}`;
+  const prompt = encodeURIComponent(`appetizing professional food photography of ${title}, ${cuisine} cuisine, plated on a dish, natural soft light, top-down, high detail`);
+  return `https://image.pollinations.ai/prompt/${prompt}?width=600&height=400&nologo=true&seed=${h % 100000}`;
 }

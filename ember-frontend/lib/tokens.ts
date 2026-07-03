@@ -89,15 +89,11 @@ export const todayLabel = (): string =>
 // ─── Recipe imagery ─────────────────────────────────────────────────────────
 interface ImageableRecipe {
   id: string;
+  title: string;
   cuisine: string;
   tags?: string[];
   photo?: string | null;
 }
-
-const FOOD_TAGS = new Set([
-  'pasta', 'noodles', 'seafood', 'cookies', 'dessert', 'tacos', 'salad', 'bread',
-  'bowls', 'curry', 'soup', 'brunch', 'baking', 'cake', 'pizza', 'rice',
-]);
 
 function hashId(id: string): number {
   let h = 0;
@@ -105,16 +101,21 @@ function hashId(id: string): number {
   return h % 100000;
 }
 
+/** Build the image-generation prompt for a specific recipe. */
+export function recipeImagePrompt(title: string, cuisine: string): string {
+  return `appetizing professional food photography of ${title}, ${cuisine} cuisine, plated on a dish, natural soft light, top-down, high detail`;
+}
+
 /**
  * The image to show for a recipe: the user's uploaded photo if present,
- * otherwise a relevant food photo pulled by keyword (cuisine + a food tag).
- * Deterministic per recipe (stable `lock`) so it doesn't change on every load.
+ * otherwise a dish photo generated to MATCH this specific recipe (via
+ * Pollinations image generation — keyless). Deterministic per recipe (fixed
+ * `seed`) so it's stable and cached, not random on every load.
  */
 export function recipeImageUrl(r: ImageableRecipe): string {
   if (r.photo) return r.photo;
-  const foodTag = (r.tags || []).map((t) => t.toLowerCase()).find((t) => FOOD_TAGS.has(t));
-  const kw = [r.cuisine.toLowerCase().replace(/[^a-z]/g, ''), foodTag, 'food'].filter(Boolean).join(',');
-  return `https://loremflickr.com/600/400/${encodeURIComponent(kw)}?lock=${hashId(r.id)}`;
+  const prompt = recipeImagePrompt(r.title, r.cuisine);
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=600&height=400&nologo=true&seed=${hashId(r.id)}`;
 }
 
 const CUISINE_EMOJI: Record<string, string> = {
