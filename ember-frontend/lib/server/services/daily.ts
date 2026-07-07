@@ -15,6 +15,7 @@ interface ProfileRow extends ProfileForPrompt {
   time_budget: string;
   daily_on_hand: string;
   timezone: string;
+  kid_friendly: boolean;
 }
 
 function localDate(timezone: string): string {
@@ -32,7 +33,7 @@ export async function generateDailyFor(
 ): Promise<{ recipe: GeneratedRecipe & { id: string; cuisine: string }; alreadyExisted: boolean }> {
   const profile = await queryOne<ProfileRow>(
     `SELECT p.user_id, p.name, u.email, p.email_daily, p.cuisines, p.diets, p.allergies,
-            p.skill, p.time_budget, p.goal, p.daily_on_hand, p.timezone
+            p.skill, p.time_budget, p.goal, p.daily_on_hand, p.timezone, p.kid_friendly
        FROM profiles p JOIN users u ON u.id = p.user_id
       WHERE p.user_id = $1 AND u.status = 'active'`,
     [userId],
@@ -51,7 +52,7 @@ export async function generateDailyFor(
 
   const generated = await generateRecipe({
     kind: 'daily', userId, profile,
-    params: { purpose: 'daily personalized recipe of the day, surprise and delight', timeBudget: profile.time_budget, ingredientsUsuallyOnHand: profile.daily_on_hand || 'typical pantry' },
+    params: { purpose: 'daily personalized recipe of the day, surprise and delight', timeBudget: profile.time_budget, ingredientsUsuallyOnHand: profile.daily_on_hand || 'typical pantry', kidFriendly: profile.kid_friendly },
   });
 
   const recipeRow = await tx(async () => {

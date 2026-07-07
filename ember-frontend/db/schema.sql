@@ -48,8 +48,10 @@ CREATE TABLE IF NOT EXISTS profiles (
   avatar_url TEXT,
   daily_on_hand TEXT NOT NULL DEFAULT '',
   timezone TEXT NOT NULL DEFAULT 'UTC',
+  kid_friendly BOOLEAN NOT NULL DEFAULT FALSE,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS kid_friendly BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS recipes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

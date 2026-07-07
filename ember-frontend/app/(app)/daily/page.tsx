@@ -69,10 +69,10 @@ export default function DailyPage() {
   const emailLabel = p.emailDaily ? `✓ Emailing daily to ${p.email}` : p.email ? 'Email my daily recipe' : '+ Add your email to enable';
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px 64px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 26, alignItems: 'start' }}>
+    <div className="ember-wrap">
+      <div className="daily-grid">
         {/* settings */}
-        <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 18, padding: '24px 24px 28px', position: 'sticky', top: 84 }}>
+        <div className="daily-settings" style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 18, padding: '24px 24px 28px', position: 'sticky', top: 84 }}>
           <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.3, marginBottom: 4 }}>Daily recipe settings</div>
           <div style={{ fontSize: 12.5, color: C.muted55, lineHeight: 1.5, marginBottom: 18 }}>Every day Ember invents one new recipe from these parameters.</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -114,6 +114,13 @@ export default function DailyPage() {
                 {GOALS.map((g) => (
                   <button key={g} style={chipStyle(p.goal === g, C.goldText, true)} onClick={() => patchProfile({ goal: g as Profile['goal'] })}>{g}</button>
                 ))}
+              </div>
+            </div>
+            <div>
+              <div style={sectionLabel}>Kid-friendly</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button style={chipStyle(!p.kidFriendly, C.dark, true)} onClick={() => patchProfile({ kidFriendly: false })}>Off</button>
+                <button style={chipStyle(p.kidFriendly, C.gold, true)} onClick={() => patchProfile({ kidFriendly: true })}>🧒 On</button>
               </div>
             </div>
             <div>

@@ -26,6 +26,7 @@ export function Nav() {
       }}
     >
       <div
+        className="nav-inner"
         style={{
           maxWidth: 1200,
           margin: '0 auto',
@@ -42,7 +43,8 @@ export function Nav() {
         >
           EMBER<span style={{ color: C.rust }}>.</span>
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="nav-pills" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+
           <button style={navStyle(isActive('/discover'))} onClick={() => router.push('/discover')}>
             Discover
           </button>

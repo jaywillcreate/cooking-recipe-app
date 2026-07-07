@@ -67,7 +67,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', padding: '36px 28px 64px' }}>
+    <div className="ember-wrap tight">
+
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: -0.8 }}>{p.onboarded ? 'Your taste profile' : 'Set up your taste profile'}</div>
         <div style={{ fontSize: 13.5, color: C.muted, marginTop: 6 }}>Ember uses this to personalize search, creations, and your daily recipe.</div>

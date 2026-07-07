@@ -36,6 +36,7 @@ export interface Profile {
   avatarUrl: string | null;
   dailyOnHand: string;
   timezone: string;
+  kidFriendly: boolean;
   hasPassword: boolean;
 }
 

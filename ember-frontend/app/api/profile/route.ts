@@ -11,7 +11,7 @@ export const GET = route(async (req: NextRequest) => {
   const p = await queryOne(
     `SELECT p.name, u.email, p.email_daily AS "emailDaily", p.cuisines, p.diets, p.allergies,
             p.skill, p.time_budget AS "time", p.goal, p.onboarded, p.avatar_url AS "avatarUrl",
-            p.daily_on_hand AS "dailyOnHand", p.timezone,
+            p.daily_on_hand AS "dailyOnHand", p.timezone, p.kid_friendly AS "kidFriendly",
             (u.password_hash IS NOT NULL) AS "hasPassword"
        FROM profiles p JOIN users u ON u.id = p.user_id WHERE p.user_id = $1`,
     [u.id],
@@ -33,12 +33,13 @@ const patchSchema = z
     onboarded: z.boolean(),
     dailyOnHand: z.string().max(500),
     timezone: z.string().max(64),
+    kidFriendly: z.boolean(),
   })
   .partial();
 
 const COLS: Record<string, string> = {
   name: 'name', emailDaily: 'email_daily', cuisines: 'cuisines', diets: 'diets', allergies: 'allergies',
-  skill: 'skill', time: 'time_budget', goal: 'goal', onboarded: 'onboarded', dailyOnHand: 'daily_on_hand', timezone: 'timezone',
+  skill: 'skill', time: 'time_budget', goal: 'goal', onboarded: 'onboarded', dailyOnHand: 'daily_on_hand', timezone: 'timezone', kidFriendly: 'kid_friendly',
 };
 
 export const PATCH = route(async (req: NextRequest) => {

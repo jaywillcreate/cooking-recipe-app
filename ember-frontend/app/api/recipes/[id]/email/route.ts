@@ -57,15 +57,21 @@ export const POST = route(async (req: NextRequest, ctx: { params: { id: string }
   const mail = renderRecipeEmail(recipe, sender?.name ?? '', note, viewUrl);
 
   let sent = 0;
+  let lastError = '';
   for (const addr of recipients) {
     try {
       await sendEmail({ to: addr, ...mail, replyTo: sender?.email });
       sent++;
     } catch (err) {
-      logger.error({ err: String(err), addr }, 'Recipe email send failed');
+      lastError = (err as Error).message;
+      logger.error({ err: lastError, addr }, 'Recipe email send failed');
     }
   }
-  if (sent === 0) throw badRequest('Could not send the email right now — try again in a moment.');
+  if (sent === 0) {
+    // Surface the real provider error to admins to make setup debuggable.
+    const detail = u.role === 'admin' && lastError ? ` [${lastError}]` : '';
+    throw badRequest(`Could not send the email right now — try again in a moment.${detail}`);
+  }
 
   return json({ sent, recipients: recipients.length, delivered: emailConfigured() });
 });

@@ -28,6 +28,9 @@ function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>)
     'Parameters: ' + JSON.stringify(params) + '\n' +
     'User profile: ' + JSON.stringify({ favoriteCuisines: profile.cuisines, diets: profile.diets, allergies: profile.allergies, skill: profile.skill, nutritionGoal: profile.goal }) + '\n' +
     'Respect all dietary restrictions and allergies strictly. Match the skill level and time budget.\n' +
+    (params.kidFriendly
+      ? 'IMPORTANT: Make this KID-FRIENDLY — mild flavours with no strong spice or heat, familiar and fun, not too adventurous, and easy for young children to eat and to help prepare.\n'
+      : '') +
     'Respond with ONLY valid JSON, no markdown fences, exactly this shape:\n' +
     '{"title":"...","cuisine":"...","mins":30,"time":"30 min","difficulty":"Beginner|Comfortable|Adventurous","desc":"one enticing sentence","tags":["...","..."],"ingredients":["quantity ingredient","..."],"steps":["...","..."],"nutrition":{"cal":450,"protein":30,"carbs":40,"fat":18}}'
   );

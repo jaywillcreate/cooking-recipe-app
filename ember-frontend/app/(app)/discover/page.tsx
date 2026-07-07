@@ -108,15 +108,15 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 28px 64px' }}>
+    <div className="ember-wrap">
       {/* hero */}
       {hero && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px,1.1fr) minmax(260px,1fr)', borderRadius: 18, overflow: 'hidden', background: C.rust, color: '#fff' }}>
-          <div style={{ padding: '44px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 15 }}>
+        <div className="hero-grid" style={{ borderRadius: 18, overflow: 'hidden', background: C.rust, color: '#fff' }}>
+          <div className="hero-copy" style={{ padding: '44px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 15 }}>
             <div style={{ fontSize: 11, letterSpacing: 2.5, textTransform: 'uppercase', fontWeight: 800, color: '#ffd9a3' }}>
               Your daily creation · {todayLabel()}
             </div>
-            <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1.05, letterSpacing: -1 }}>{hero.title}</div>
+            <div className="hero-title" style={{ fontSize: 36, fontWeight: 800, lineHeight: 1.05, letterSpacing: -1 }}>{hero.title}</div>
             <div style={{ fontSize: 14.5, lineHeight: 1.55, color: 'rgba(255,255,255,0.82)', maxWidth: '44ch' }}>{heroDesc}</div>
             <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
               <button onClick={() => router.push(`/recipe/${hero.id}`)} style={{ background: C.dark, color: C.bg, fontWeight: 700, fontSize: 14, padding: '13px 26px', borderRadius: 999, border: 'none', cursor: 'pointer' }}>
@@ -127,7 +127,7 @@ export default function DiscoverPage() {
               </button>
             </div>
           </div>
-          <div style={{ background: `#b04c26 url("${recipeImageUrl(hero)}") center/cover no-repeat`, minHeight: 280 }} />
+          <div className="hero-photo" style={{ background: `#b04c26 url("${recipeImageUrl(hero)}") center/cover no-repeat`, minHeight: 280 }} />
 
         </div>
       )}

@@ -15,6 +15,7 @@ function CreateInner() {
   const [time, setTime] = useState<(typeof TIMES)[number]>('30 min');
   const [skill, setSkill] = useState<(typeof SKILLS)[number]>('Comfortable');
   const [onHand, setOnHand] = useState('');
+  const [kidFriendly, setKidFriendly] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<Recipe | null>(null);
   const [saved, setSaved] = useState(false);
@@ -26,7 +27,7 @@ function CreateInner() {
     setResult(null);
     setSaved(false);
     try {
-      const { recipe } = await generateApi.create({ craving, cuisine, time, skill, onHand });
+      const { recipe } = await generateApi.create({ craving, cuisine, time, skill, onHand, kidFriendly });
       setResult(recipe);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Generation hiccuped — give it another try in a moment.');
@@ -62,7 +63,8 @@ function CreateInner() {
   const label = { fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase' as const, color: C.muted55, marginBottom: 10 };
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 28px 64px' }}>
+    <div className="ember-wrap slim">
+
       <div style={{ textAlign: 'center', marginBottom: 26 }}>
         <div style={{ display: 'inline-block', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', fontWeight: 800, color: '#fff', background: C.green, padding: '6px 14px', borderRadius: 999, marginBottom: 14 }}>
           ✦ AI recipe creation
@@ -90,7 +92,7 @@ function CreateInner() {
               ))}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, marginTop: 22 }}>
+          <div className="form-2col" style={{ marginTop: 22 }}>
             <div>
               <div style={label}>Time</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -117,6 +119,13 @@ function CreateInner() {
               Ingredients on hand <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
             </div>
             <input value={onHand} onChange={(e) => setOnHand(e.target.value)} placeholder="e.g. chicken thighs, lemongrass, coconut milk" style={{ ...inputBase, padding: '13px 16px', fontSize: 14 }} />
+          </div>
+          <div style={{ marginTop: 22 }}>
+            <div style={label}>Make it for</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button style={chipStyle(!kidFriendly, C.dark, true)} onClick={() => setKidFriendly(false)}>Anyone</button>
+              <button style={chipStyle(kidFriendly, C.gold, true)} onClick={() => setKidFriendly(true)}>🧒 Kid-friendly</button>
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 26, flexWrap: 'wrap', gap: 12 }}>
             <div style={{ fontSize: 12.5, color: C.muted55 }}>
@@ -160,7 +169,7 @@ function CreateInner() {
               </button>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 32, marginTop: 26 }}>
+          <div className="result-grid" style={{ marginTop: 26 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust, marginBottom: 12 }}>Ingredients</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

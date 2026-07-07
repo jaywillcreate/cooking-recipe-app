@@ -50,7 +50,8 @@ export default function CookbookPage() {
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 120 }}><Spinner /></div>;
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 28px 64px' }}>
+    <div className="ember-wrap">
+
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
         <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: -0.8 }}>{possessive} cookbook</div>
         <div style={{ fontSize: 13, color: C.muted55, fontWeight: 500 }}>{recipes.length} saved recipes</div>

@@ -121,7 +121,7 @@ export default function RecipeDetailPage() {
 
   const n = recipe.nutrition;
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '24px 28px 64px' }}>
+    <div className="ember-wrap narrow">
       <button onClick={() => router.back()} style={{ background: 'none', border: 'none', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, color: C.muted, cursor: 'pointer', padding: '8px 0', marginBottom: 8 }}>
         ← Back
       </button>
@@ -137,7 +137,7 @@ export default function RecipeDetailPage() {
             onUploaded={(url) => setRecipe({ ...recipe, photo: url })}
           />
         </div>
-        <div style={{ padding: '32px 36px 40px' }}>
+        <div className="detail-card-pad" style={{ padding: '32px 36px 40px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <div style={{ maxWidth: '56ch' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
@@ -222,7 +222,7 @@ export default function RecipeDetailPage() {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 36, marginTop: 32 }}>
+          <div className="detail-grid" style={{ marginTop: 32 }}>
             <div>
               <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust, marginBottom: 14 }}>Ingredients</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
