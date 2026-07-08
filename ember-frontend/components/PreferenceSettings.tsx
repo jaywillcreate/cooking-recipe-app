@@ -25,12 +25,16 @@ export function PreferenceSettings({
   subtitle = 'These personalize every recipe TastyEmber creates — here, on Create, and your daily recipe.',
   sticky = false,
   className,
+  only,
 }: {
   title?: string;
   subtitle?: string;
   sticky?: boolean;
   className?: string;
+  /** Render only these sections (default: all). */
+  only?: Array<'cuisines' | 'diet' | 'time' | 'skill' | 'goal' | 'kid' | 'allergies' | 'pantry' | 'email'>;
 }) {
+  const show = (k: NonNullable<typeof only>[number]) => !only || only.includes(k);
   const router = useRouter();
   const { profile, patchProfile } = useApp();
   const [onHand, setOnHand] = useState('');
@@ -66,14 +70,17 @@ export function PreferenceSettings({
       <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.3, marginBottom: 4 }}>{title}</div>
       <div style={{ fontSize: 12.5, color: C.muted55, lineHeight: 1.5, marginBottom: 18 }}>{subtitle}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {show('cuisines') && (
         <div>
-          <div style={sectionLabel}>Cuisines</div>
+          <div style={sectionLabel}>Favourite cuisines</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {CUISINES.map((c) => (
               <button key={c} style={chipStyle(p.cuisines.includes(c), C.rust, true)} onClick={() => toggleArr('cuisines', c)}>{c}</button>
             ))}
           </div>
         </div>
+        )}
+        {show('diet') && (
         <div>
           <div style={sectionLabel}>Dietary</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -82,6 +89,8 @@ export function PreferenceSettings({
             ))}
           </div>
         </div>
+        )}
+        {show('time') && (
         <div>
           <div style={sectionLabel}>Time budget</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -90,6 +99,8 @@ export function PreferenceSettings({
             ))}
           </div>
         </div>
+        )}
+        {show('skill') && (
         <div>
           <div style={sectionLabel}>Skill</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -98,6 +109,8 @@ export function PreferenceSettings({
             ))}
           </div>
         </div>
+        )}
+        {show('goal') && (
         <div>
           <div style={sectionLabel}>Nutrition goal</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -106,6 +119,8 @@ export function PreferenceSettings({
             ))}
           </div>
         </div>
+        )}
+        {show('kid') && (
         <div>
           <div style={sectionLabel}>Kid-friendly</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -113,6 +128,8 @@ export function PreferenceSettings({
             <button style={chipStyle(p.kidFriendly, C.gold, true)} onClick={() => patchProfile({ kidFriendly: true })}>🧒 On</button>
           </div>
         </div>
+        )}
+        {show('allergies') && (
         <div>
           <div style={sectionLabel}>Allergies to avoid</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -122,10 +139,14 @@ export function PreferenceSettings({
           </div>
           <div style={{ fontSize: 11, color: C.muted55, marginTop: 6 }}>TastyEmber strictly avoids these in every recipe it creates for you.</div>
         </div>
+        )}
+        {show('pantry') && (
         <div>
           <div style={sectionLabel}>Usually on hand</div>
           <input value={onHand} onChange={(e) => onHandChange(e.target.value)} placeholder="e.g. eggs, rice, frozen peas" style={{ width: '100%', boxSizing: 'border-box', border: `1.5px solid rgba(36,26,18,0.18)`, borderRadius: 10, padding: '11px 13px', fontFamily: 'inherit', fontSize: 13, background: C.bg, color: C.ink }} />
         </div>
+        )}
+        {show('email') && (
         <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 16 }}>
           <div style={sectionLabel}>Daily email delivery</div>
           <button
@@ -158,6 +179,7 @@ export function PreferenceSettings({
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

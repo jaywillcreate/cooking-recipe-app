@@ -45,9 +45,10 @@ function CreateInner() {
     useApp.getState().setSavedCount(res.count);
   }
 
+  const allergyList = [...(profile?.allergens ?? []), ...(profile?.allergies ? [profile.allergies] : [])].join(', ');
   const profileSummary = [
     profile?.diets.length ? profile.diets.join(', ') : 'no restrictions',
-    profile?.allergies ? `avoids ${profile.allergies}` : null,
+    allergyList ? `avoids ${allergyList}` : null,
     profile && profile.goal !== 'No goal' ? profile.goal.toLowerCase() : null,
   ]
     .filter(Boolean)
@@ -129,11 +130,11 @@ function CreateInner() {
               <button style={chipStyle(kidFriendly, C.gold, true)} onClick={() => setKidFriendly(true)}>🧒 Kid-friendly</button>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 26, flexWrap: 'wrap', gap: 12 }}>
+          <div className="create-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 26, gap: 14 }}>
             <div style={{ fontSize: 12.5, color: C.muted55 }}>
-              Uses your profile: <span style={{ fontWeight: 700, color: C.green }}>{profileSummary}</span>
+              Also applies: <span style={{ fontWeight: 700, color: C.green }}>{profileSummary}</span>
             </div>
-            <button onClick={generate} style={{ background: C.rust, color: '#fff', fontWeight: 800, fontSize: 15, padding: '15px 34px', borderRadius: 999, border: 'none', cursor: 'pointer' }}>
+            <button className="create-cta" onClick={generate} style={{ background: C.rust, color: '#fff', fontWeight: 800, fontSize: 15, padding: '15px 34px', borderRadius: 999, border: 'none', cursor: 'pointer', flex: 'none' }}>
               ✦ Create my recipe
             </button>
           </div>
@@ -197,9 +198,14 @@ function CreateInner() {
         </div>
       )}
 
-      {/* Full preference settings (shared with the Daily page) + recipe remix */}
-      <div style={{ marginTop: 32 }}>
-        <PreferenceSettings title="Your preferences" subtitle="Saved to your profile and applied to every recipe — here, on the Daily page, and in your daily email." />
+      {/* Only the always-applied constraints here — cuisine, time, skill and
+          kid-friendly are set per-recipe above, so nothing conflicts. */}
+      <div style={{ marginTop: 28 }}>
+        <PreferenceSettings
+          only={['diet', 'allergies', 'goal']}
+          title="Dietary needs & goals"
+          subtitle="Hard constraints applied to every recipe — saved to your profile and honored strictly."
+        />
       </div>
       <RecipeRemix />
     </div>

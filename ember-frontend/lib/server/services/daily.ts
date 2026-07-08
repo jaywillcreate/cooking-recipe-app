@@ -70,7 +70,7 @@ export async function generateDailyFor(
     userId,
     profile: { ...profile, allergies: combineAllergies(profile.allergies, profile.allergens) },
     hints: await buildPreferenceHints(userId),
-    params: { purpose: 'daily personalized recipe of the day, surprise and delight', timeBudget: profile.time_budget, ingredientsUsuallyOnHand: profile.daily_on_hand || 'typical pantry', kidFriendly: profile.kid_friendly },
+    params: { purpose: 'daily personalized recipe of the day, surprise and delight', cuisine: 'Surprise me', skill: profile.skill, timeBudget: profile.time_budget, ingredientsUsuallyOnHand: profile.daily_on_hand || 'typical pantry', kidFriendly: profile.kid_friendly },
   });
 
   const recipeRow = await tx(async () => {

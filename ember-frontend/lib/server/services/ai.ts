@@ -34,12 +34,20 @@ function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>,
       : '';
   return (
     'You are a world-class chef with deep expertise in every cuisine. Invent ONE new, original recipe.\n' +
-    'Parameters: ' + JSON.stringify(params) + '\n' +
-    'User profile: ' + JSON.stringify({ favoriteCuisines: profile.cuisines, diets: profile.diets, allergies: profile.allergies, skill: profile.skill, nutritionGoal: profile.goal }) + '\n' +
+    // Explicit request — authoritative. It always wins over general preferences.
+    'THIS REQUEST (explicit instructions — follow exactly; these override the general preferences below):\n' +
+    JSON.stringify(params) + '\n' +
+    // Background preferences only. NOTE: no skill/time here — those come from the request.
+    'General preferences (background context only): ' +
+    JSON.stringify({ favoriteCuisines: profile.cuisines, diets: profile.diets, allergies: profile.allergies, nutritionGoal: profile.goal }) + '\n' +
     hintLine +
-    'Respect all dietary restrictions and allergies strictly. Match the skill level and time budget.\n' +
+    'RULES:\n' +
+    '- Dietary restrictions and allergies are ABSOLUTE — never use them or their derivatives, no exceptions.\n' +
+    '- Cuisine: if the request names a specific cuisine, use exactly that one. Only if it says "Surprise me" or names none, pick one from favoriteCuisines (or your choice if none).\n' +
+    '- AUTHENTICITY: build the dish from ingredients, seasonings, pantry staples, and techniques that are genuinely traditional to the chosen cuisine. Do not substitute generic or out-of-place ingredients; the result should read as authentically that cuisine.\n' +
+    '- Match the requested time budget and skill level; scale ingredient quantities to the requested number of servings if given.\n' +
     (params.kidFriendly
-      ? 'IMPORTANT: Make this KID-FRIENDLY — mild flavours with no strong spice or heat, familiar and fun, not too adventurous, and easy for young children to eat and to help prepare.\n'
+      ? '- KID-FRIENDLY: mild flavours with no strong spice or heat, familiar and fun, not too adventurous, easy for young children to eat and help prepare.\n'
       : '') +
     'Respond with ONLY valid JSON, no markdown fences, exactly this shape:\n' +
     '{"title":"...","cuisine":"...","mins":30,"time":"30 min","difficulty":"Beginner|Comfortable|Adventurous","desc":"one enticing sentence","tags":["...","..."],"ingredients":["quantity ingredient","..."],"steps":["...","..."],"nutrition":{"cal":450,"protein":30,"carbs":40,"fat":18}}'
