@@ -66,7 +66,7 @@ function CreateInner() {
   const label = { fontSize: 12, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase' as const, color: C.muted55, marginBottom: 10 };
 
   return (
-    <div className="ember-wrap slim">
+    <div className="ember-wrap slim create-wrap">
 
       <div style={{ textAlign: 'center', marginBottom: 26 }}>
         <div style={{ display: 'inline-block', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', fontWeight: 800, color: '#fff', background: C.green, padding: '6px 14px', borderRadius: 999, marginBottom: 14 }}>
@@ -130,6 +130,14 @@ function CreateInner() {
               <button style={chipStyle(kidFriendly, C.gold, true)} onClick={() => setKidFriendly(true)}>🧒 Kid-friendly</button>
             </div>
           </div>
+
+          {/* Combined into this one section: profile constraints applied to every recipe */}
+          <div style={{ marginTop: 26, paddingTop: 22, borderTop: `1px solid ${C.line}` }}>
+            <div style={label}>Dietary needs &amp; goals</div>
+            <div style={{ fontSize: 12, color: C.muted55, margin: '-4px 0 14px' }}>Saved to your profile and applied as strict constraints to every recipe.</div>
+            <PreferenceSettings only={['diet', 'allergies', 'goal']} bare />
+          </div>
+
           <div className="create-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 26, gap: 14 }}>
             <div style={{ fontSize: 12.5, color: C.muted55 }}>
               Also applies: <span style={{ fontWeight: 700, color: C.green }}>{profileSummary}</span>
@@ -198,16 +206,16 @@ function CreateInner() {
         </div>
       )}
 
-      {/* Only the always-applied constraints here — cuisine, time, skill and
-          kid-friendly are set per-recipe above, so nothing conflicts. */}
-      <div style={{ marginTop: 28 }}>
-        <PreferenceSettings
-          only={['diet', 'allergies', 'goal']}
-          title="Dietary needs & goals"
-          subtitle="Hard constraints applied to every recipe — saved to your profile and honored strictly."
-        />
-      </div>
       <RecipeRemix />
+
+      {/* Mobile-only sticky CTA — always visible while filling out the form */}
+      {!generating && !result && (
+        <div className="create-sticky-cta">
+          <button onClick={generate} style={{ width: '100%', background: C.rust, color: '#fff', fontWeight: 800, fontSize: 16, padding: '15px', borderRadius: 999, border: 'none', cursor: 'pointer' }}>
+            ✦ Create my recipe
+          </button>
+        </div>
+      )}
     </div>
   );
 }

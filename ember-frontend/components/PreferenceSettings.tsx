@@ -26,6 +26,7 @@ export function PreferenceSettings({
   sticky = false,
   className,
   only,
+  bare = false,
 }: {
   title?: string;
   subtitle?: string;
@@ -33,6 +34,8 @@ export function PreferenceSettings({
   className?: string;
   /** Render only these sections (default: all). */
   only?: Array<'cuisines' | 'diet' | 'time' | 'skill' | 'goal' | 'kid' | 'allergies' | 'pantry' | 'email'>;
+  /** Render just the section chips with no card/title wrapper (to embed inline). */
+  bare?: boolean;
 }) {
   const show = (k: NonNullable<typeof only>[number]) => !only || only.includes(k);
   const router = useRouter();
@@ -66,9 +69,16 @@ export function PreferenceSettings({
   const emailLabel = p.emailDaily ? `✓ Emailing daily to ${p.email}` : p.email ? 'Email my daily recipe' : '+ Add your email to enable';
 
   return (
-    <div className={className} style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 18, padding: '24px 24px 28px', ...(sticky ? { position: 'sticky', top: 84 } : {}) }}>
-      <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.3, marginBottom: 4 }}>{title}</div>
-      <div style={{ fontSize: 12.5, color: C.muted55, lineHeight: 1.5, marginBottom: 18 }}>{subtitle}</div>
+    <div
+      className={bare ? undefined : className}
+      style={bare ? undefined : { background: C.surface, border: `1px solid ${C.line}`, borderRadius: 18, padding: '24px 24px 28px', ...(sticky ? { position: 'sticky', top: 84 } : {}) }}
+    >
+      {!bare && (
+        <>
+          <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.3, marginBottom: 4 }}>{title}</div>
+          <div style={{ fontSize: 12.5, color: C.muted55, lineHeight: 1.5, marginBottom: 18 }}>{subtitle}</div>
+        </>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         {show('cuisines') && (
         <div>
