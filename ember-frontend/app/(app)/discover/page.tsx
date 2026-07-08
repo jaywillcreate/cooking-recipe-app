@@ -182,8 +182,8 @@ export default function DiscoverPage() {
       </div>
       <div style={{ fontSize: 13, color: C.muted65, lineHeight: 1.5, marginBottom: 18, maxWidth: '70ch' }}>
         {q.trim()
-          ? 'Matching recipes from your personal library and the Ember catalog.'
-          : 'A hand-picked mix from the Ember catalog and your own AI creations — reshuffled every visit so there’s always something new to cook. Tap the bookmark to save a recipe straight to your cookbook.'}
+          ? 'Matching recipes from your personal library and the TastyEmber catalog.'
+          : 'A hand-picked mix from the TastyEmber catalog and your own AI creations — reshuffled every visit so there’s always something new to cook. Tap the bookmark to save a recipe straight to your cookbook.'}
       </div>
       <div className="kitchen-grid">
         {recipes.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE).map((r) => (

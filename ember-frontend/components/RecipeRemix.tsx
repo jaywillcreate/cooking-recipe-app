@@ -64,7 +64,7 @@ export function RecipeRemix() {
     <div style={{ marginTop: 22, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 18, padding: '24px 26px' }}>
       <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.3 }}>✎ Remix a recipe</div>
       <div style={{ fontSize: 12.5, color: C.muted65, lineHeight: 1.5, margin: '4px 0 16px', maxWidth: '62ch' }}>
-        Paste (or upload) any recipe and tell Ember how to change it — “make it vegan”, “for 2 people”, “less spicy”,
+        Paste (or upload) any recipe and tell TastyEmber how to change it — “make it vegan”, “for 2 people”, “less spicy”,
         “swap the chicken for tofu”. It respects your diet & allergy settings.
       </div>
 

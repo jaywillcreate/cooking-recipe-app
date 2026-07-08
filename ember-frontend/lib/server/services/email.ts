@@ -19,8 +19,8 @@ export const emailConfigured = (): boolean =>
 /** Parse `EMAIL_FROM` ("Name <email>" or "email") into parts. */
 function parseFrom(from: string): { name: string; email: string } {
   const m = from.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
-  if (m) return { name: m[1] || 'Ember', email: m[2]!.trim() };
-  return { name: 'Ember', email: from.trim() };
+  if (m) return { name: m[1] || 'TastyEmber', email: m[2]!.trim() };
+  return { name: 'TastyEmber', email: from.trim() };
 }
 
 /**
@@ -82,7 +82,7 @@ export function renderDailyEmail(
   const hi = name ? `Good morning, ${esc(name)}` : 'Good morning';
   const html = `<!doctype html><html><body style="margin:0;background:#faf5ec;font-family:Archivo,Helvetica,Arial,sans-serif;color:#241a12">
   <div style="max-width:560px;margin:0 auto;padding:28px">
-    <div style="font-weight:900;letter-spacing:-.5px;font-size:20px">EMBER<span style="color:#c4552d">.</span></div>
+    <div style="font-size:20px"><span style="font-family:'Brush Script MT',cursive;color:#c4552d;font-size:21px">Tasty</span><span style="font-weight:900;letter-spacing:-.5px">Ember<span style="color:#c4552d">.</span></span></div>
     <p style="color:rgba(36,26,18,.65);font-size:13px;margin:6px 0 20px">${hi} — today's creation, invented just for you.</p>
     <div style="background:#241a12;color:#fff;border-radius:16px;padding:24px">
       <div style="color:#e8a13c;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:2px">${esc(recipe.cuisine)} · ${esc(recipe.time || recipe.mins + ' min')}</div>
@@ -94,7 +94,7 @@ export function renderDailyEmail(
     <ul style="font-size:14px;line-height:1.7;padding-left:18px;margin:0">${ingredients}</ul>
     <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:#9a6a10;margin:24px 0 8px">Method</h3>
     <ol style="font-size:14px;line-height:1.7;padding-left:18px;margin:0;list-style:none">${steps}</ol>
-    <p style="color:rgba(36,26,18,.5);font-size:11px;margin-top:28px">You're receiving this because daily delivery is on. Manage it in your Ember daily settings.</p>
+    <p style="color:rgba(36,26,18,.5);font-size:11px;margin-top:28px">You're receiving this because daily delivery is on. Manage it in your TastyEmber daily settings.</p>
   </div></body></html>`;
   const text =
     `${recipe.title} (${recipe.cuisine}, ${recipe.time || recipe.mins + ' min'})\n\n${recipe.desc}\n\n` +
@@ -131,14 +131,14 @@ export function renderRecipeEmail(
 
   const html = `<!doctype html><html><body style="margin:0;background:#faf5ec;font-family:Archivo,Helvetica,Arial,sans-serif;color:#241a12">
   <div style="max-width:560px;margin:0 auto;padding:28px">
-    <div style="font-weight:900;letter-spacing:-.5px;font-size:20px">EMBER<span style="color:#c4552d">.</span></div>
+    <div style="font-size:20px"><span style="font-family:'Brush Script MT',cursive;color:#c4552d;font-size:21px">Tasty</span><span style="font-weight:900;letter-spacing:-.5px">Ember<span style="color:#c4552d">.</span></span></div>
     <p style="color:rgba(36,26,18,.65);font-size:13px;margin:6px 0 20px">${who} shared a recipe with you.</p>
     ${noteBlock}
     ${hero}
     <div style="color:#c4552d;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:2px">${esc(recipe.cuisine)} · ${esc(recipe.time)}</div>
     <h1 style="font-size:26px;margin:6px 0 6px;font-weight:800">${esc(recipe.title)}</h1>
     <p style="color:rgba(36,26,18,.7);font-size:14px;margin:0 0 8px">${esc(recipe.desc)}</p>
-    <a href="${esc(viewUrl)}" style="display:inline-block;margin-top:8px;background:#c4552d;color:#fff;text-decoration:none;padding:11px 20px;border-radius:999px;font-weight:700;font-size:13px">Open in Ember →</a>
+    <a href="${esc(viewUrl)}" style="display:inline-block;margin-top:8px;background:#c4552d;color:#fff;text-decoration:none;padding:11px 20px;border-radius:999px;font-weight:700;font-size:13px">Open in TastyEmber →</a>
     <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:#9a6a10;margin:24px 0 8px">Ingredients</h3>
     <ul style="font-size:14px;line-height:1.7;padding-left:18px;margin:0">${ingredients}</ul>
     <h3 style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:#9a6a10;margin:24px 0 8px">Method</h3>

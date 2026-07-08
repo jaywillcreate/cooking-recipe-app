@@ -46,7 +46,7 @@ export const config = {
   genDailyLimit: parseInt(process.env.GEN_DAILY_LIMIT ?? '25', 10),
 
   emailProvider: (process.env.EMAIL_PROVIDER ?? 'console') as 'resend' | 'brevo' | 'console',
-  emailFrom: process.env.EMAIL_FROM ?? 'Ember <hello@ember.app>',
+  emailFrom: process.env.EMAIL_FROM ?? 'TastyEmber <hello@ember.app>',
   resendApiKey: process.env.RESEND_API_KEY,
   brevoApiKey: process.env.BREVO_API_KEY,
 

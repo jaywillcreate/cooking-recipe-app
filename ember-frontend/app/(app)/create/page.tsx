@@ -6,6 +6,8 @@ import { useApp } from '@/lib/store';
 import type { Recipe } from '@/lib/types';
 import { C, CUISINES, SKILLS, TIMES, chipStyle } from '@/lib/tokens';
 import { Spinner } from '@/components/Spinner';
+import { PreferenceSettings } from '@/components/PreferenceSettings';
+import { RecipeRemix } from '@/components/RecipeRemix';
 
 function CreateInner() {
   const params = useSearchParams();
@@ -70,7 +72,7 @@ function CreateInner() {
           ✦ AI recipe creation
         </div>
         <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: -1 }}>What are you craving?</div>
-        <div style={{ fontSize: 14, color: C.muted, marginTop: 8 }}>Ember invents a brand-new recipe for you — tuned to your profile.</div>
+        <div style={{ fontSize: 14, color: C.muted, marginTop: 8 }}>TastyEmber invents a brand-new recipe for you — tuned to your profile.</div>
       </div>
 
       {!generating && !result && (
@@ -194,6 +196,12 @@ function CreateInner() {
           </div>
         </div>
       )}
+
+      {/* Full preference settings (shared with the Daily page) + recipe remix */}
+      <div style={{ marginTop: 32 }}>
+        <PreferenceSettings title="Your preferences" subtitle="Saved to your profile and applied to every recipe — here, on the Daily page, and in your daily email." />
+      </div>
+      <RecipeRemix />
     </div>
   );
 }

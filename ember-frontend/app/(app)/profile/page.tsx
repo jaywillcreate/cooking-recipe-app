@@ -71,7 +71,7 @@ export default function ProfilePage() {
 
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: -0.8 }}>{p.onboarded ? 'Your taste profile' : 'Set up your taste profile'}</div>
-        <div style={{ fontSize: 13.5, color: C.muted, marginTop: 6 }}>Ember uses this to personalize search, creations, and your daily recipe.</div>
+        <div style={{ fontSize: 13.5, color: C.muted, marginTop: 6 }}>TastyEmber uses this to personalize search, creations, and your daily recipe.</div>
       </div>
       <div style={{ display: 'flex', gap: 6, marginBottom: 26 }}>
         {[1, 2, 3, 4].map((i) => (

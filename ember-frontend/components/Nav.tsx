@@ -2,6 +2,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from '@/lib/store';
 import { C, navStyle } from '@/lib/tokens';
+import { Wordmark } from './Wordmark';
 
 export function Nav() {
   const router = useRouter();
@@ -37,11 +38,8 @@ export function Nav() {
           gap: 16,
         }}
       >
-        <div
-          style={{ fontWeight: 900, fontSize: 21, letterSpacing: -0.5, cursor: 'pointer' }}
-          onClick={() => router.push('/discover')}
-        >
-          EMBER<span style={{ color: C.rust }}>.</span>
+        <div style={{ cursor: 'pointer' }} onClick={() => router.push('/discover')}>
+          <Wordmark size={21} />
         </div>
         <div className="nav-pills" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
 

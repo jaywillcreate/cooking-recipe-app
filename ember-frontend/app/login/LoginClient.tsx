@@ -5,6 +5,7 @@ import { useApp } from '@/lib/store';
 import { ApiError } from '@/lib/api';
 import { C } from '@/lib/tokens';
 import { Spinner } from '@/components/Spinner';
+import { Wordmark } from '@/components/Wordmark';
 
 export default function LoginClient({ googleEnabled }: { googleEnabled: boolean }) {
   const router = useRouter();
@@ -55,8 +56,8 @@ export default function LoginClient({ googleEnabled }: { googleEnabled: boolean 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, color: C.ink, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
-        <div style={{ textAlign: 'center', marginBottom: 8, fontWeight: 900, fontSize: 30, letterSpacing: -0.8 }}>
-          EMBER<span style={{ color: C.rust }}>.</span>
+        <div style={{ textAlign: 'center', marginBottom: 8 }}>
+          <Wordmark size={30} />
         </div>
         <p style={{ textAlign: 'center', color: C.muted, fontSize: 13.5, marginTop: 0, marginBottom: 22 }}>
           {mode === 'login' ? 'Welcome back to your kitchen.' : 'Create your account — a new recipe awaits daily.'}
@@ -103,7 +104,7 @@ export default function LoginClient({ googleEnabled }: { googleEnabled: boolean 
           </form>
         </div>
         <p style={{ textAlign: 'center', color: C.muted, fontSize: 13, marginTop: 18 }}>
-          {mode === 'login' ? "New to Ember? " : 'Already have an account? '}
+          {mode === 'login' ? 'New to TastyEmber? ' : 'Already have an account? '}
           <button onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); }} style={{ background: 'none', border: 'none', color: C.rust, fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
             {mode === 'login' ? 'Create an account' : 'Sign in'}
           </button>
