@@ -9,7 +9,7 @@ interface AppState {
   savedCount: number;
 
   bootstrap: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, remember?: boolean) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
 
@@ -44,8 +44,8 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
 
-  login: async (email, password) => {
-    const { accessToken, user } = await authApi.login(email, password);
+  login: async (email, password, remember = true) => {
+    const { accessToken, user } = await authApi.login(email, password, remember);
     setAccessToken(accessToken);
     set({ user });
     await get().loadProfile();

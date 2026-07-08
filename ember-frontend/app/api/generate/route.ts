@@ -4,6 +4,7 @@ import { query, queryOne } from '@/lib/server/db';
 import { assertUnderDailyLimit, generationsUsedToday } from '@/lib/server/services/usage';
 import { assertRateLimit } from '@/lib/server/services/rateLimit';
 import { generateRecipe, type ProfileForPrompt } from '@/lib/server/services/ai';
+import { buildPreferenceHints, combineAllergies } from '@/lib/server/services/personalization';
 import { insertGeneratedRecipe, serializeRecipe } from '@/lib/server/services/recipes';
 import { config } from '@/lib/server/config';
 import type { NextRequest } from 'next/server';
@@ -26,14 +27,19 @@ export const POST = route(async (req: NextRequest) => {
   await assertRateLimit('gen:global', 60, 60, 'The kitchen is busy — try again shortly.');
   await assertUnderDailyLimit(u.id);
 
-  const p = await queryOne<ProfileForPrompt>(`SELECT cuisines, diets, allergies, skill, goal FROM profiles WHERE user_id = $1`, [u.id]);
-  const profile = p ?? { cuisines: [], diets: [], allergies: '', skill: 'Comfortable', goal: 'Balanced' };
+  const p = await queryOne<ProfileForPrompt & { allergens: string[] }>(
+    `SELECT cuisines, diets, allergies, skill, goal, allergens FROM profiles WHERE user_id = $1`,
+    [u.id],
+  );
+  const base = p ?? { cuisines: [], diets: [], allergies: '', skill: 'Comfortable', goal: 'Balanced', allergens: [] };
+  const profile: ProfileForPrompt = { ...base, allergies: combineAllergies(base.allergies, base.allergens) };
+  const hints = await buildPreferenceHints(u.id);
   const b = await readBody(req, schema);
 
   let generated;
   try {
     generated = await generateRecipe({
-      kind: 'create', userId: u.id, profile,
+      kind: 'create', userId: u.id, profile, hints,
       params: { craving: b.craving || "chef's choice", cuisine: b.cuisine, timeBudget: b.time, skill: b.skill, ingredientsOnHand: b.onHand || 'anything', kidFriendly: b.kidFriendly },
     });
   } catch {

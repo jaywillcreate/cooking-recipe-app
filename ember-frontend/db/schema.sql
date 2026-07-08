@@ -49,9 +49,23 @@ CREATE TABLE IF NOT EXISTS profiles (
   daily_on_hand TEXT NOT NULL DEFAULT '',
   timezone TEXT NOT NULL DEFAULT 'UTC',
   kid_friendly BOOLEAN NOT NULL DEFAULT FALSE,
+  daily_hour INTEGER NOT NULL DEFAULT 8,     -- local hour (0-23) to deliver the daily recipe
+  allergens TEXT[] NOT NULL DEFAULT '{}',     -- selected common allergens
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS kid_friendly BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS daily_hour INTEGER NOT NULL DEFAULT 8;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS allergens TEXT[] NOT NULL DEFAULT '{}';
+
+-- Thumbs up/down on recipes → personalizes future AI generations.
+CREATE TABLE IF NOT EXISTS recipe_feedback (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  vote SMALLINT NOT NULL CHECK (vote IN (-1, 1)),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, recipe_id)
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_user ON recipe_feedback(user_id);
 
 CREATE TABLE IF NOT EXISTS recipes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

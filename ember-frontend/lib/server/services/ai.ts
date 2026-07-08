@@ -15,18 +15,28 @@ export interface ProfileForPrompt {
   skill: string;
   goal: string;
 }
+export interface PreferenceHints {
+  liked: string[];
+  disliked: string[];
+}
 export interface GenerateParams {
   kind: 'create' | 'daily' | 'web';
   userId?: string | null;
   profile: ProfileForPrompt;
   params: Record<string, unknown>;
+  hints?: PreferenceHints;
 }
 
-function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>): string {
+function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>, hints?: PreferenceHints): string {
+  const hintLine =
+    hints && (hints.liked.length || hints.disliked.length)
+      ? `Personalize using this feedback — the user has LIKED: [${hints.liked.join(', ')}]; the user has DISLIKED: [${hints.disliked.join(', ')}]. Lean toward liked styles and avoid disliked ones.\n`
+      : '';
   return (
     'You are a world-class chef with deep expertise in every cuisine. Invent ONE new, original recipe.\n' +
     'Parameters: ' + JSON.stringify(params) + '\n' +
     'User profile: ' + JSON.stringify({ favoriteCuisines: profile.cuisines, diets: profile.diets, allergies: profile.allergies, skill: profile.skill, nutritionGoal: profile.goal }) + '\n' +
+    hintLine +
     'Respect all dietary restrictions and allergies strictly. Match the skill level and time budget.\n' +
     (params.kidFriendly
       ? 'IMPORTANT: Make this KID-FRIENDLY — mild flavours with no strong spice or heat, familiar and fun, not too adventurous, and easy for young children to eat and to help prepare.\n'
@@ -43,7 +53,7 @@ function extractJson(text: string): unknown {
 }
 
 export async function generateRecipe(input: GenerateParams): Promise<GeneratedRecipe> {
-  const prompt = buildPrompt(input.profile, input.params);
+  const prompt = buildPrompt(input.profile, input.params, input.hints);
   let lastErr: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     let inTok = 0;

@@ -8,6 +8,23 @@ import { C, CUISINES, mono, chipStyle, todayLabel, recipeImageUrl } from '@/lib/
 import { RecipeCard } from '@/components/RecipeCard';
 import { Spinner } from '@/components/Spinner';
 
+const PAGE_SIZE = 8; // 2 rows × 4 columns
+
+const pagerStyle: React.CSSProperties = {
+  fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '9px 18px', borderRadius: 999,
+  border: '1.5px solid rgba(36,26,18,0.22)', background: 'transparent', color: '#241a12',
+};
+
+/** Fisher–Yates shuffle so the library feels fresh on each page load. */
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j]!, a[i]!];
+  }
+  return a;
+}
+
 export default function DiscoverPage() {
   const router = useRouter();
   const { profile, refreshSavedCount } = useApp();
@@ -22,11 +39,12 @@ export default function DiscoverPage() {
   const [siteLoading, setSiteLoading] = useState<string | null>(null);
   const [siteError, setSiteError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
   const debounce = useRef<ReturnType<typeof setTimeout>>();
 
   const loadWeb = useCallback(async () => {
     const [web, s] = await Promise.all([recipeApi.list({ scope: 'web' }), sitesApi.list()]);
-    setWebRecipes(web.recipes);
+    setWebRecipes(shuffle(web.recipes)); // vary the order each visit
     setSites(s.sites);
   }, []);
 
@@ -55,7 +73,9 @@ export default function DiscoverPage() {
         q: q.trim() || undefined,
         cuisine: cuisine !== 'All' ? cuisine : undefined,
       });
-      setRecipes(recipes);
+      // Shuffle so the library refreshes each load; searches stay ordered.
+      setRecipes(q.trim() ? recipes : shuffle(recipes));
+      setPage(0);
     }, 220);
     return () => clearTimeout(debounce.current);
   }, [q, cuisine]);
@@ -156,15 +176,41 @@ export default function DiscoverPage() {
       </div>
 
       {/* results */}
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: -0.4 }}>{resultsHeading}</div>
         <div style={{ fontSize: 12.5, color: C.muted55, fontWeight: 500 }}>{recipes.length} recipes</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(255px,1fr))', gap: 18 }}>
-        {recipes.map((r) => (
-          <RecipeCard key={r.id} r={r} />
+      <div style={{ fontSize: 13, color: C.muted65, lineHeight: 1.5, marginBottom: 18, maxWidth: '70ch' }}>
+        {q.trim()
+          ? 'Matching recipes from your personal library and the Ember catalog.'
+          : 'A hand-picked mix from the Ember catalog and your own AI creations — reshuffled every visit so there’s always something new to cook. Tap the bookmark to save a recipe straight to your cookbook.'}
+      </div>
+      <div className="kitchen-grid">
+        {recipes.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE).map((r) => (
+          <RecipeCard key={r.id} r={r} showTags showSaveToggle />
         ))}
       </div>
+      {recipes.length > PAGE_SIZE && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 24 }}>
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            style={{ ...pagerStyle, opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'default' : 'pointer' }}
+          >
+            ← Prev
+          </button>
+          <span style={{ fontSize: 13, fontWeight: 700, color: C.muted75 }}>
+            Page {page + 1} of {Math.ceil(recipes.length / PAGE_SIZE)}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(Math.ceil(recipes.length / PAGE_SIZE) - 1, p + 1))}
+            disabled={page >= Math.ceil(recipes.length / PAGE_SIZE) - 1}
+            style={{ ...pagerStyle, opacity: page >= Math.ceil(recipes.length / PAGE_SIZE) - 1 ? 0.4 : 1, cursor: page >= Math.ceil(recipes.length / PAGE_SIZE) - 1 ? 'default' : 'pointer' }}
+          >
+            Next →
+          </button>
+        </div>
+      )}
 
       {/* from the web */}
       {!q.trim() && (
@@ -173,16 +219,21 @@ export default function DiscoverPage() {
             <div style={{ fontSize: 15, fontWeight: 800 }}>Fresh from the web</div>
             <div style={{ fontFamily: mono, fontSize: 11, color: 'rgba(36,26,18,0.5)' }}>latest recipes from the sites you follow</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.muted55 }}>My sites</span>
-            {sites.map((d) => (
-              <span key={d} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: mono, fontSize: 11.5, fontWeight: 500, color: C.green, background: 'rgba(47,122,77,0.1)', border: '1px solid rgba(47,122,77,0.3)', padding: '5px 7px 5px 12px', borderRadius: 999 }}>
-                {d}
-                <button onClick={() => removeSite(d)} title="Remove site" style={{ border: 'none', background: 'rgba(47,122,77,0.2)', color: C.green, width: 16, height: 16, borderRadius: '50%', fontSize: 11, lineHeight: 1, cursor: 'pointer', padding: 0 }}>
-                  ×
-                </button>
-              </span>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.muted55, flex: 'none' }}>My sites</span>
+            <div className="web-pills">
+              {sites.map((d) => (
+                <span key={d} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: mono, fontSize: 11.5, fontWeight: 500, color: C.green, background: 'rgba(47,122,77,0.1)', border: '1px solid rgba(47,122,77,0.3)', padding: '5px 7px 5px 12px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+                  {d}
+                  <button onClick={() => removeSite(d)} title="Remove site" style={{ border: 'none', background: 'rgba(47,122,77,0.2)', color: C.green, width: 16, height: 16, borderRadius: '50%', fontSize: 11, lineHeight: 1, cursor: 'pointer', padding: 0 }}>
+                    ×
+                  </button>
+                </span>
+              ))}
+              {sites.length === 0 && <span style={{ fontSize: 12, color: C.muted55 }}>No sites yet — add one below.</span>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             <input
               value={newSite}
               onChange={(e) => { setNewSite(e.target.value); setSiteError(null); }}

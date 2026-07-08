@@ -8,11 +8,15 @@ import type { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const schema = z.object({ email: z.string().email().max(200), password: z.string().min(1).max(200) });
+const schema = z.object({
+  email: z.string().email().max(200),
+  password: z.string().min(1).max(200),
+  remember: z.boolean().default(true),
+});
 
 export const POST = route(async (req: NextRequest) => {
   await assertRateLimit(`login:${clientIp(req)}`, 20, 900, 'Too many attempts. Try again later.');
-  const { email, password } = await readBody(req, schema);
+  const { email, password, remember } = await readBody(req, schema);
 
   const user = await queryOne<{ id: string; password_hash: string; role: Role; status: string }>(
     `SELECT id, password_hash, role, status FROM users WHERE email = $1`,
@@ -28,6 +32,6 @@ export const POST = route(async (req: NextRequest) => {
 
   await query(`UPDATE users SET last_login_at = now() WHERE id = $1`, [user.id]);
   const res = json({ accessToken: signAccessToken({ sub: user.id, role: user.role }), user: { id: user.id, email, role: user.role } });
-  setRefreshCookie(res, await issueRefreshToken(user.id, req.headers.get('user-agent') ?? undefined));
+  setRefreshCookie(res, await issueRefreshToken(user.id, req.headers.get('user-agent') ?? undefined), remember);
   return res;
 });

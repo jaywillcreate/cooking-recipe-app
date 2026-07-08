@@ -4,9 +4,16 @@ import { useParams, useRouter } from 'next/navigation';
 import { recipeApi, cookbookApi, ApiError } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import type { Collection, Recipe } from '@/lib/types';
-import { C, chipStyle, recipeImageUrl } from '@/lib/tokens';
+import { C, chipStyle, recipeImageUrl, scaleIngredient, BASE_SERVINGS } from '@/lib/tokens';
 import { ImageUpload } from '@/components/ImageUpload';
 import { Spinner } from '@/components/Spinner';
+import { Feedback } from '@/components/Feedback';
+
+const servBtn: React.CSSProperties = {
+  width: 26, height: 26, borderRadius: '50%', border: `1.5px solid ${C.line22}`, background: '#fff',
+  color: C.ink, fontSize: 16, fontWeight: 700, cursor: 'pointer', lineHeight: 1, display: 'flex',
+  alignItems: 'center', justifyContent: 'center', padding: 0,
+};
 
 export default function RecipeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +30,7 @@ export default function RecipeDetailPage() {
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailMsg, setEmailMsg] = useState<string | null>(null);
   const [emailErr, setEmailErr] = useState<string | null>(null);
+  const [servings, setServings] = useState(BASE_SERVINGS);
 
   async function sendRecipeEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -161,6 +169,10 @@ export default function RecipeDetailPage() {
                 ✉ Email recipe
               </button>
               <div style={{ fontSize: 12, color: C.muted55, fontWeight: 500, textAlign: 'center' }}>{recipe.meta}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 2 }}>
+                <span style={{ fontSize: 11.5, color: C.muted55 }}>Rate:</span>
+                <Feedback recipeId={recipe.id} initial={recipe.vote} />
+              </div>
             </div>
           </div>
 
@@ -224,12 +236,24 @@ export default function RecipeDetailPage() {
 
           <div className="detail-grid" style={{ marginTop: 32 }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust, marginBottom: 14 }}>Ingredients</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 8 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust }}>Ingredients</div>
+              </div>
+              {/* Servings scaler */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, padding: '8px 12px', background: C.bg, borderRadius: 999, width: 'fit-content' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.muted75 }}>Serves</span>
+                <button onClick={() => setServings((s) => Math.max(1, s - 1))} style={servBtn} aria-label="Fewer servings">−</button>
+                <span style={{ fontSize: 15, fontWeight: 800, minWidth: 20, textAlign: 'center' }}>{servings}</span>
+                <button onClick={() => setServings((s) => Math.min(24, s + 1))} style={servBtn} aria-label="More servings">+</button>
+                {servings !== BASE_SERVINGS && (
+                  <button onClick={() => setServings(BASE_SERVINGS)} style={{ background: 'none', border: 'none', color: C.rust, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', marginLeft: 2 }}>reset</button>
+                )}
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {recipe.ingredients.map((ing, i) => (
                   <label key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13.5, lineHeight: 1.45, cursor: 'pointer' }}>
                     <input type="checkbox" style={{ marginTop: 2, accentColor: C.rust }} />
-                    <span>{ing}</span>
+                    <span>{scaleIngredient(ing, servings / BASE_SERVINGS)}</span>
                   </label>
                 ))}
               </div>

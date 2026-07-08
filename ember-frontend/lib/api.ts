@@ -72,8 +72,8 @@ export async function api<T = unknown>(path: string, opts: ApiOpts = {}): Promis
 export const authApi = {
   register: (email: string, password: string, name?: string) =>
     api<{ accessToken: string; user: User }>('/api/auth/register', { body: { email, password, name } }),
-  login: (email: string, password: string) =>
-    api<{ accessToken: string; user: User }>('/api/auth/login', { body: { email, password } }),
+  login: (email: string, password: string, remember = true) =>
+    api<{ accessToken: string; user: User }>('/api/auth/login', { body: { email, password, remember } }),
   refresh: refreshAccessToken,
   logout: () => api('/api/auth/logout', { method: 'POST' }),
   me: () => api<{ user: User }>('/api/auth/me'),
@@ -98,6 +98,7 @@ export const recipeApi = {
   get: (id: string) => api<{ recipe: Recipe }>(`/api/recipes/${id}`),
   email: (id: string, body: { to: string; note?: string }) =>
     api<{ sent: number; recipients: number; delivered: boolean }>(`/api/recipes/${id}/email`, { body }),
+  feedback: (id: string, vote: 1 | -1 | 0) => api<{ vote: number }>(`/api/recipes/${id}/feedback`, { body: { vote } }),
 };
 
 export const cookbookApi = {

@@ -4,8 +4,15 @@ import { useRouter } from 'next/navigation';
 import { dailyApi, cookbookApi } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import type { Profile, Recipe } from '@/lib/types';
-import { C, CUISINES, DIETS, TIMES, SKILLS, GOALS, chipStyle, todayLabel, recipeImageUrl } from '@/lib/tokens';
+import { C, CUISINES, DIETS, TIMES, SKILLS, GOALS, ALLERGENS, chipStyle, todayLabel, recipeImageUrl } from '@/lib/tokens';
 import { Spinner } from '@/components/Spinner';
+import { Feedback } from '@/components/Feedback';
+
+function formatHour(h: number): string {
+  const period = h < 12 ? 'AM' : 'PM';
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:00 ${period}`;
+}
 
 type Daily = (Recipe & { emailedAt?: string | null }) | null;
 
@@ -27,6 +34,13 @@ export default function DailyPage() {
   useEffect(() => {
     if (profile) setOnHand(profile.dailyOnHand);
   }, [profile]);
+  // Capture the browser's timezone so the daily delivery time is accurate.
+  useEffect(() => {
+    if (!profile) return;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz && tz !== profile.timezone) void patchProfile({ timezone: tz });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.timezone]);
 
   if (!profile) return <div style={{ display: 'flex', justifyContent: 'center', padding: 120 }}><Spinner /></div>;
   const p = profile;
@@ -34,6 +48,9 @@ export default function DailyPage() {
   const toggleArr = (key: 'cuisines' | 'diets', v: string) => {
     const arr = p[key];
     void patchProfile({ [key]: arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v] } as Partial<Profile>);
+  };
+  const toggleAllergen = (a: string) => {
+    void patchProfile({ allergens: p.allergens.includes(a) ? p.allergens.filter((x) => x !== a) : [...p.allergens, a] });
   };
 
   async function generateDaily() {
@@ -124,6 +141,15 @@ export default function DailyPage() {
               </div>
             </div>
             <div>
+              <div style={sectionLabel}>Allergies to avoid</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {ALLERGENS.map((a) => (
+                  <button key={a} style={chipStyle(p.allergens.includes(a), C.rust, true)} onClick={() => toggleAllergen(a)}>{a}</button>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: C.muted55, marginTop: 6 }}>Ember strictly avoids these in every recipe it creates for you.</div>
+            </div>
+            <div>
               <div style={sectionLabel}>Usually on hand</div>
               <input value={onHand} onChange={(e) => onHandChange(e.target.value)} placeholder="e.g. eggs, rice, frozen peas" style={{ width: '100%', boxSizing: 'border-box', border: `1.5px solid rgba(36,26,18,0.18)`, borderRadius: 10, padding: '11px 13px', fontFamily: 'inherit', fontSize: 13, background: C.bg, color: C.ink }} />
             </div>
@@ -141,8 +167,23 @@ export default function DailyPage() {
                 {emailLabel}
               </button>
               <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.muted55, marginTop: 8 }}>
-                {p.emailDaily ? 'Each morning Ember will autonomously create your recipe and send it to your inbox.' : 'Turn on to get your autonomously created recipe in your inbox every morning.'}
+                {p.emailDaily ? 'Ember autonomously creates your recipe and emails it at your chosen time.' : 'Turn on to get your autonomously created recipe in your inbox every day.'}
               </div>
+              {p.emailDaily && (
+                <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.muted75 }}>Deliver at</span>
+                  <select
+                    value={p.deliveryHour}
+                    onChange={(e) => patchProfile({ deliveryHour: parseInt(e.target.value, 10) })}
+                    style={{ fontFamily: 'inherit', fontSize: 13, padding: '7px 10px', borderRadius: 10, border: `1.5px solid ${C.line22}`, background: C.bg, color: C.ink, cursor: 'pointer' }}
+                  >
+                    {Array.from({ length: 24 }).map((_, h) => (
+                      <option key={h} value={h}>{formatHour(h)}</option>
+                    ))}
+                  </select>
+                  <span style={{ fontSize: 11, color: C.muted55 }}>your local time</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -179,6 +220,9 @@ export default function DailyPage() {
                   <button onClick={toggleSaveDaily} style={{ background: 'none', border: '1.5px solid rgba(250,245,236,0.4)', color: C.bg, fontWeight: 600, fontSize: 13, padding: '11px 22px', borderRadius: 999, cursor: 'pointer' }}>
                     {saved ? '✓ Saved' : '♡ Save'}
                   </button>
+                  <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto' }}>
+                    <Feedback recipeId={daily.id} initial={daily.vote} dark />
+                  </div>
                 </div>
               </div>
             </div>

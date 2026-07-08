@@ -24,7 +24,7 @@ export interface RecipeRow {
 
 export function serializeRecipe(
   r: RecipeRow,
-  opts: { saved?: boolean; customTags?: string[]; userPhoto?: string | null } = {},
+  opts: { saved?: boolean; customTags?: string[]; userPhoto?: string | null; vote?: number } = {},
 ): Record<string, unknown> {
   const accent = CUISINE_ACCENTS[r.cuisine] ?? '#c4552d';
   const baseTags = r.tags ?? [];
@@ -53,6 +53,7 @@ export function serializeRecipe(
     meta: `${r.time_label} · ${r.difficulty}${rating ? ' · ★ ' + rating : ''}`,
     sourceLabel: r.source ? 'web' : r.origin === 'ai' || r.origin === 'daily' ? '✦ yours' : '',
     saved: opts.saved ?? false,
+    vote: opts.vote ?? 0,
   };
 }
 
@@ -87,10 +88,11 @@ export async function customTagsFor(userId: string, recipeId: string): Promise<s
 export async function serializeRecipeForUser(userId: string, recipeId: string): Promise<Record<string, unknown> | null> {
   const row = await getVisibleRecipe(userId, recipeId);
   if (!row) return null;
-  const [savedRow, ctags, photoRow] = await Promise.all([
+  const [savedRow, ctags, photoRow, voteRow] = await Promise.all([
     queryOne(`SELECT 1 FROM saves WHERE user_id = $1 AND recipe_id = $2`, [userId, recipeId]),
     customTagsFor(userId, recipeId),
     queryOne<{ url: string }>(`SELECT url FROM recipe_photos WHERE user_id = $1 AND recipe_id = $2`, [userId, recipeId]),
+    queryOne<{ vote: number }>(`SELECT vote FROM recipe_feedback WHERE user_id = $1 AND recipe_id = $2`, [userId, recipeId]),
   ]);
-  return serializeRecipe(row, { saved: !!savedRow, customTags: ctags, userPhoto: photoRow?.url ?? null });
+  return serializeRecipe(row, { saved: !!savedRow, customTags: ctags, userPhoto: photoRow?.url ?? null, vote: voteRow?.vote ?? 0 });
 }

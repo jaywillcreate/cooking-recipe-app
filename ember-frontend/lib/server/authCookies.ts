@@ -4,13 +4,15 @@ import { config } from './config';
 
 export const REFRESH_COOKIE = 'ember_rt';
 
-export function setRefreshCookie(res: NextResponse, raw: string): void {
+export function setRefreshCookie(res: NextResponse, raw: string, remember = true): void {
   res.cookies.set(REFRESH_COOKIE, raw, {
     httpOnly: true,
     secure: config.isProd,
     sameSite: 'lax',
     path: '/api/auth',
-    maxAge: config.refreshTtlDays * 86400,
+    // "Remember this device" → persistent cookie; otherwise a session cookie
+    // (cleared when the browser closes).
+    ...(remember ? { maxAge: config.refreshTtlDays * 86400 } : {}),
   });
 }
 

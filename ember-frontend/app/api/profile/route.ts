@@ -12,6 +12,7 @@ export const GET = route(async (req: NextRequest) => {
     `SELECT p.name, u.email, p.email_daily AS "emailDaily", p.cuisines, p.diets, p.allergies,
             p.skill, p.time_budget AS "time", p.goal, p.onboarded, p.avatar_url AS "avatarUrl",
             p.daily_on_hand AS "dailyOnHand", p.timezone, p.kid_friendly AS "kidFriendly",
+            p.daily_hour AS "deliveryHour", p.allergens,
             (u.password_hash IS NOT NULL) AS "hasPassword"
        FROM profiles p JOIN users u ON u.id = p.user_id WHERE p.user_id = $1`,
     [u.id],
@@ -34,12 +35,14 @@ const patchSchema = z
     dailyOnHand: z.string().max(500),
     timezone: z.string().max(64),
     kidFriendly: z.boolean(),
+    deliveryHour: z.number().int().min(0).max(23),
+    allergens: z.array(z.string().max(40)).max(20),
   })
   .partial();
 
 const COLS: Record<string, string> = {
   name: 'name', emailDaily: 'email_daily', cuisines: 'cuisines', diets: 'diets', allergies: 'allergies',
-  skill: 'skill', time: 'time_budget', goal: 'goal', onboarded: 'onboarded', dailyOnHand: 'daily_on_hand', timezone: 'timezone', kidFriendly: 'kid_friendly',
+  skill: 'skill', time: 'time_budget', goal: 'goal', onboarded: 'onboarded', dailyOnHand: 'daily_on_hand', timezone: 'timezone', kidFriendly: 'kid_friendly', deliveryHour: 'daily_hour', allergens: 'allergens',
 };
 
 export const PATCH = route(async (req: NextRequest) => {

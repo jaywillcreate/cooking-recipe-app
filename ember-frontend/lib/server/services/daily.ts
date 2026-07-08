@@ -5,6 +5,7 @@ import { config } from '../config';
 import { generateRecipe, type ProfileForPrompt } from './ai';
 import { insertGeneratedRecipe } from './recipes';
 import { sendEmail, renderDailyEmail } from './email';
+import { buildPreferenceHints, combineAllergies } from './personalization';
 import type { GeneratedRecipe } from '../recipeSchema';
 
 interface ProfileRow extends ProfileForPrompt {
@@ -16,6 +17,8 @@ interface ProfileRow extends ProfileForPrompt {
   daily_on_hand: string;
   timezone: string;
   kid_friendly: boolean;
+  daily_hour: number;
+  allergens: string[];
 }
 
 function localDate(timezone: string): string {
@@ -26,6 +29,17 @@ function localDate(timezone: string): string {
   }
 }
 
+function localHour(timezone: string): number {
+  try {
+    return parseInt(
+      new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour: 'numeric', hour12: false }).format(new Date()),
+      10,
+    ) % 24;
+  } catch {
+    return new Date().getUTCHours();
+  }
+}
+
 /** Generate (or regenerate) today's recipe for one user. Idempotent per date. */
 export async function generateDailyFor(
   userId: string,
@@ -33,7 +47,8 @@ export async function generateDailyFor(
 ): Promise<{ recipe: GeneratedRecipe & { id: string; cuisine: string }; alreadyExisted: boolean }> {
   const profile = await queryOne<ProfileRow>(
     `SELECT p.user_id, p.name, u.email, p.email_daily, p.cuisines, p.diets, p.allergies,
-            p.skill, p.time_budget, p.goal, p.daily_on_hand, p.timezone, p.kid_friendly
+            p.skill, p.time_budget, p.goal, p.daily_on_hand, p.timezone, p.kid_friendly,
+            p.daily_hour, p.allergens
        FROM profiles p JOIN users u ON u.id = p.user_id
       WHERE p.user_id = $1 AND u.status = 'active'`,
     [userId],
@@ -51,7 +66,10 @@ export async function generateDailyFor(
   }
 
   const generated = await generateRecipe({
-    kind: 'daily', userId, profile,
+    kind: 'daily',
+    userId,
+    profile: { ...profile, allergies: combineAllergies(profile.allergies, profile.allergens) },
+    hints: await buildPreferenceHints(userId),
     params: { purpose: 'daily personalized recipe of the day, surprise and delight', timeBudget: profile.time_budget, ingredientsUsuallyOnHand: profile.daily_on_hand || 'typical pantry', kidFriendly: profile.kid_friendly },
   });
 
@@ -107,12 +125,16 @@ function rowToRecipe(r: RecipeShape): GeneratedRecipe & { id: string; cuisine: s
  * on any schedule (a single daily Vercel Cron serves everyone once per day).
  */
 export async function runDailySweep(): Promise<{ processed: number; candidates: number }> {
-  const candidates = await query<{ user_id: string; timezone: string }>(
-    `SELECT p.user_id, p.timezone FROM profiles p JOIN users u ON u.id = p.user_id
+  const candidates = await query<{ user_id: string; timezone: string; daily_hour: number }>(
+    `SELECT p.user_id, p.timezone, p.daily_hour FROM profiles p JOIN users u ON u.id = p.user_id
       WHERE p.email_daily = TRUE AND u.status = 'active'`,
   );
   let processed = 0;
   for (const c of candidates) {
+    // Only deliver once the user's local time has reached their chosen hour.
+    // With an hourly cron this fires exactly at that hour; with a once-daily
+    // cron it delivers on the run at/after their preferred time.
+    if (localHour(c.timezone) < (c.daily_hour ?? 8)) continue;
     const forDate = localDate(c.timezone);
     const done = await queryOne(`SELECT 1 FROM daily_recipes WHERE user_id = $1 AND for_date = $2 AND emailed_at IS NOT NULL`, [c.user_id, forDate]);
     if (done) continue;

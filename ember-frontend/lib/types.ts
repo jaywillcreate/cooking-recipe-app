@@ -20,6 +20,7 @@ export interface Recipe {
   meta: string;
   sourceLabel: string;
   saved: boolean;
+  vote: number; // 1 up, -1 down, 0 none
 }
 
 export interface Profile {
@@ -37,6 +38,8 @@ export interface Profile {
   dailyOnHand: string;
   timezone: string;
   kidFriendly: boolean;
+  deliveryHour: number;
+  allergens: string[];
   hasPassword: boolean;
 }
 

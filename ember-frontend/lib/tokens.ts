@@ -41,6 +41,61 @@ export const DIETS = ['None', 'Vegetarian', 'Vegan', 'Pescatarian', 'Gluten-free
 export const SKILLS = ['Beginner', 'Comfortable', 'Adventurous'];
 export const TIMES = ['15 min', '30 min', '45 min', '1 hr+'];
 export const GOALS = ['Balanced', 'High protein', 'Low calorie', 'Heart healthy', 'No goal'];
+export const ALLERGENS = ['Peanuts', 'Tree nuts', 'Milk', 'Eggs', 'Fish', 'Shellfish', 'Soy', 'Gluten', 'Sesame'];
+
+/** Recipes are written for a base of 4 servings; scale ingredient quantities. */
+export const BASE_SERVINGS = 4;
+
+const UNICODE_FRACTIONS: Record<string, number> = {
+  '½': 0.5, '⅓': 1 / 3, '⅔': 2 / 3, '¼': 0.25, '¾': 0.75, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875,
+};
+
+function formatQty(n: number): string {
+  const rounded = Math.round(n * 100) / 100;
+  const whole = Math.floor(rounded);
+  const frac = rounded - whole;
+  const near = (v: number) => Math.abs(frac - v) < 0.06;
+  let fracStr = '';
+  if (near(0.5)) fracStr = '½';
+  else if (near(1 / 3)) fracStr = '⅓';
+  else if (near(2 / 3)) fracStr = '⅔';
+  else if (near(0.25)) fracStr = '¼';
+  else if (near(0.75)) fracStr = '¾';
+  else if (frac > 0.06) return String(rounded);
+  if (whole === 0 && fracStr) return fracStr;
+  return fracStr ? `${whole}${fracStr}` : String(whole);
+}
+
+/**
+ * Scale the leading quantity in an ingredient line by a factor. Handles
+ * integers, decimals, "1 1/2", and unicode fractions (½). Non-quantified lines
+ * are returned unchanged.
+ */
+export function scaleIngredient(line: string, factor: number): string {
+  if (factor === 1) return line;
+  // "1 1/2 cups" or "1/2 cup"
+  const asciiMixed = line.match(/^(\d+)\s+(\d+)\/(\d+)\s*(.*)$/);
+  if (asciiMixed) {
+    const val = (parseInt(asciiMixed[1]!) + parseInt(asciiMixed[2]!) / parseInt(asciiMixed[3]!)) * factor;
+    return `${formatQty(val)} ${asciiMixed[4]}`.trim();
+  }
+  const asciiFrac = line.match(/^(\d+)\/(\d+)\s*(.*)$/);
+  if (asciiFrac) {
+    const val = (parseInt(asciiFrac[1]!) / parseInt(asciiFrac[2]!)) * factor;
+    return `${formatQty(val)} ${asciiFrac[3]}`.trim();
+  }
+  const uni = line.match(/^(\d*)\s*([½⅓⅔¼¾⅛⅜⅝⅞])\s*(.*)$/);
+  if (uni) {
+    const val = ((uni[1] ? parseInt(uni[1]) : 0) + (UNICODE_FRACTIONS[uni[2]!] ?? 0)) * factor;
+    return `${formatQty(val)} ${uni[3]}`.trim();
+  }
+  const dec = line.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
+  if (dec) {
+    const val = parseFloat(dec[1]!) * factor;
+    return `${formatQty(val)} ${dec[2]}`.trim();
+  }
+  return line;
+}
 
 export const mono = "'IBM Plex Mono', monospace";
 

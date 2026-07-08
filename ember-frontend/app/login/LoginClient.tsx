@@ -16,6 +16,7 @@ export default function LoginClient({ googleEnabled }: { googleEnabled: boolean 
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [remember, setRemember] = useState(true);
 
   useEffect(() => {
     if (!ready) void bootstrap();
@@ -37,7 +38,7 @@ export default function LoginClient({ googleEnabled }: { googleEnabled: boolean 
         await register(email, password, name);
         router.replace('/profile');
       } else {
-        await login(email, password);
+        await login(email, password, remember);
         router.replace('/discover');
       }
     } catch (err) {
@@ -88,7 +89,13 @@ export default function LoginClient({ googleEnabled }: { googleEnabled: boolean 
           <form onSubmit={submit}>
             {mode === 'register' && <input style={input} placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />}
             <input style={input} type="email" placeholder="you@email.com" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required />
-            <input style={{ ...input, marginBottom: 20 }} type="password" placeholder={mode === 'register' ? 'Password (min 10 characters)' : 'Password'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} required />
+            <input style={{ ...input, marginBottom: mode === 'login' ? 14 : 20 }} type="password" placeholder={mode === 'register' ? 'Password (min 10 characters)' : 'Password'} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} required />
+            {mode === 'login' && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.muted75, marginBottom: 18, cursor: 'pointer', userSelect: 'none' }}>
+                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} style={{ width: 16, height: 16, accentColor: C.rust, cursor: 'pointer' }} />
+                Remember this device
+              </label>
+            )}
             <button type="submit" disabled={busy} style={{ width: '100%', background: C.rust, color: '#fff', fontWeight: 800, fontSize: 15, padding: '14px', borderRadius: 999, border: 'none', cursor: busy ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               {busy && <Spinner size={16} color="#fff" />}
               {mode === 'login' ? 'Sign in' : 'Create account'}
