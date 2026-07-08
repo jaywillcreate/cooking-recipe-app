@@ -106,6 +106,7 @@ export const cookbookApi = {
   unsave: (recipeId: string) => api<{ saved: boolean; count: number }>(`/api/cookbook/saves/${recipeId}`, { method: 'DELETE' }),
   collections: () => api<{ collections: Collection[] }>('/api/cookbook/collections'),
   createCollection: (name: string) => api<{ collection: Collection }>('/api/cookbook/collections', { body: { name } }),
+  deleteCollection: (id: string) => api(`/api/cookbook/collections/${id}`, { method: 'DELETE' }),
   toggleCollection: (collectionId: string, recipeId: string) =>
     api<{ inCollection: boolean }>(`/api/cookbook/collections/${collectionId}/toggle`, { body: { recipeId } }),
   addTag: (recipeId: string, tag: string) => api<{ tag: string }>(`/api/cookbook/tags/${recipeId}`, { body: { tag } }),
@@ -123,6 +124,8 @@ export const generateApi = {
   create: (body: { craving: string; cuisine: string; time: string; skill: string; onHand: string; kidFriendly?: boolean; save?: boolean }) =>
     api<{ recipe: Recipe; usage: { used: number; limit: number } }>('/api/generate', { body }),
   quota: () => api<{ used: number; limit: number; remaining: number }>('/api/generate/quota'),
+  edit: (body: { recipeText: string; instruction: string; save?: boolean }) =>
+    api<{ recipe: Recipe; usage: { used: number; limit: number } }>('/api/generate/edit', { body }),
 };
 
 export const dailyApi = {

@@ -52,8 +52,8 @@ function extractJson(text: string): unknown {
   return JSON.parse(match[0]);
 }
 
-export async function generateRecipe(input: GenerateParams): Promise<GeneratedRecipe> {
-  const prompt = buildPrompt(input.profile, input.params, input.hints);
+/** Core model call → JSON extract → validate → log, with one retry. */
+async function runGeneration(prompt: string, input: GenerateParams): Promise<GeneratedRecipe> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     let inTok = 0;
@@ -77,6 +77,34 @@ export async function generateRecipe(input: GenerateParams): Promise<GeneratedRe
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error('generation_failed');
+}
+
+export async function generateRecipe(input: GenerateParams): Promise<GeneratedRecipe> {
+  return runGeneration(buildPrompt(input.profile, input.params, input.hints), input);
+}
+
+const RECIPE_SHAPE =
+  '{"title":"...","cuisine":"...","mins":30,"time":"30 min","difficulty":"Beginner|Comfortable|Adventurous","desc":"one enticing sentence","tags":["...","..."],"ingredients":["quantity ingredient","..."],"steps":["...","..."],"nutrition":{"cal":450,"protein":30,"carbs":40,"fat":18}}';
+
+export interface EditParams {
+  userId?: string | null;
+  profile: ProfileForPrompt;
+  hints?: PreferenceHints;
+  recipeText: string;
+  instruction: string;
+}
+
+/** Revise a user-supplied recipe according to their instruction. */
+export async function editRecipe(input: EditParams): Promise<GeneratedRecipe> {
+  const prompt =
+    'You are a world-class chef. The user has an existing recipe and wants it revised.\n' +
+    'EXISTING RECIPE (as provided by the user):\n"""\n' + input.recipeText.slice(0, 4000) + '\n"""\n' +
+    'REQUESTED CHANGE: ' + input.instruction + '\n' +
+    'User profile: ' + JSON.stringify({ diets: input.profile.diets, allergies: input.profile.allergies, skill: input.profile.skill, nutritionGoal: input.profile.goal }) + '\n' +
+    'Apply the requested change while keeping the spirit of the original. Respect all dietary restrictions and allergies strictly. If the original is vague or incomplete, fill in sensible details.\n' +
+    'Return the COMPLETE revised recipe as ONLY valid JSON, no markdown fences, exactly this shape:\n' +
+    RECIPE_SHAPE;
+  return runGeneration(prompt, { kind: 'create', userId: input.userId, profile: input.profile, params: {}, hints: input.hints });
 }
 
 async function logUsage(input: GenerateParams, inTok: number, outTok: number, success: boolean, error: string | null) {

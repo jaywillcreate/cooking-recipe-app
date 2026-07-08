@@ -7,6 +7,7 @@ import type { Profile, Recipe } from '@/lib/types';
 import { C, CUISINES, DIETS, TIMES, SKILLS, GOALS, ALLERGENS, chipStyle, todayLabel, recipeImageUrl } from '@/lib/tokens';
 import { Spinner } from '@/components/Spinner';
 import { Feedback } from '@/components/Feedback';
+import { RecipeRemix } from '@/components/RecipeRemix';
 
 function formatHour(h: number): string {
   const period = h < 12 ? 'AM' : 'PM';
@@ -236,8 +237,10 @@ export default function DailyPage() {
           )}
 
           <div style={{ marginTop: 22, padding: '16px 20px', background: 'rgba(232,161,60,0.12)', borderRadius: 12, fontSize: 12.5, lineHeight: 1.55, color: C.muted75 }}>
-            <span style={{ fontWeight: 800, color: C.goldText }}>How it works:</span> a new recipe is generated automatically each morning from your parameters and emailed to you when delivery is on. You can also generate or regenerate today&apos;s here anytime.
+            <span style={{ fontWeight: 800, color: C.goldText }}>How it works:</span> a new recipe is generated automatically each day from your parameters and emailed to you at your chosen time when delivery is on. You can also generate or regenerate today&apos;s here anytime.
           </div>
+
+          <RecipeRemix />
         </div>
       </div>
     </div>
