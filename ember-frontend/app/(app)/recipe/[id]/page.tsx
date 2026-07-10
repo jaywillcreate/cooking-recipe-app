@@ -11,6 +11,7 @@ import { Feedback } from '@/components/Feedback';
 import { ShoppingList } from '@/components/ShoppingList';
 import { KitchenIcon } from '@/components/KitchenIcons';
 import { StepImage } from '@/components/StepImage';
+import { useGeneratedImage } from '@/lib/useGeneratedImage';
 import { deriveEquipment } from '@/lib/equipment';
 
 const servBtn: React.CSSProperties = {
@@ -36,6 +37,9 @@ export default function RecipeDetailPage() {
   const [emailErr, setEmailErr] = useState<string | null>(null);
   const [servings, setServings] = useState(BASE_SERVINGS);
   const [showStepImages, setShowStepImages] = useState(false);
+  // Hero dish image: Gemini "Nano Banana" when configured, else Pollinations.
+  const heroFallback = recipe ? recipeImageUrl({ ...recipe, photo: null }) : '';
+  const { url: heroImageUrl } = useGeneratedImage(recipe?.id ?? '', heroFallback);
 
   async function sendRecipeEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -145,7 +149,7 @@ export default function RecipeDetailPage() {
             shape="rect"
             height={260}
             currentUrl={recipe.photo}
-            fallbackUrl={recipeImageUrl({ ...recipe, photo: null })}
+            fallbackUrl={heroImageUrl}
             placeholder="Drop or click to add your dish photo"
             onUploaded={(url) => setRecipe({ ...recipe, photo: url })}
           />

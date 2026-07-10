@@ -45,6 +45,20 @@ export const config = {
 
   genDailyLimit: parseInt(process.env.GEN_DAILY_LIMIT ?? '25', 10),
 
+  // Gemini 2.5 Flash Image ("Nano Banana") for higher-quality recipe & step
+  // imagery. Optional — when GEMINI_API_KEY is unset, imagery falls back to the
+  // keyless Pollinations generator. GOOGLE_AI_API_KEY is accepted as an alias.
+  get geminiApiKey(): string | undefined {
+    return process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+  },
+  geminiImageModel: process.env.GEMINI_IMAGE_MODEL ?? 'gemini-2.5-flash-image',
+  get geminiEnabled(): boolean {
+    return !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY);
+  },
+  // Per-user daily cap on Gemini image generations — a safety valve on spend
+  // (each image ≈ $0.039). Cached images don't count against this.
+  geminiImageDailyLimit: parseInt(process.env.GEMINI_IMAGE_DAILY_LIMIT ?? '150', 10),
+
   emailProvider: (process.env.EMAIL_PROVIDER ?? 'console') as 'resend' | 'brevo' | 'console',
   emailFrom: process.env.EMAIL_FROM ?? 'TastyEmber <hello@ember.app>',
   resendApiKey: process.env.RESEND_API_KEY,

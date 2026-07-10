@@ -150,37 +150,44 @@ interface ImageableRecipe {
   photo?: string | null;
 }
 
-function hashId(id: string): number {
+/** Stable numeric hash of an id → deterministic image seed. */
+export function hashId(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   return h % 100000;
 }
 
-/** Build the image-generation prompt for a specific recipe. */
+/** Keyless Pollinations image URL (fallback when Gemini isn't configured). */
+export function pollinationsUrl(prompt: string, width: number, height: number, seed: number): string {
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
+}
+
+/** Build the image-generation prompt for a specific recipe's finished dish. */
 export function recipeImagePrompt(title: string, cuisine: string): string {
   return `appetizing professional food photography of ${title}, ${cuisine} cuisine, plated on a dish, natural soft light, top-down, high detail`;
 }
 
-/**
- * The image to show for a recipe: the user's uploaded photo if present,
- * otherwise a dish photo generated to MATCH this specific recipe (via
- * Pollinations image generation — keyless). Deterministic per recipe (fixed
- * `seed`) so it's stable and cached, not random on every load.
- */
-export function recipeImageUrl(r: ImageableRecipe): string {
-  if (r.photo) return r.photo;
-  const prompt = recipeImagePrompt(r.title, r.cuisine);
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=600&height=400&nologo=true&seed=${hashId(r.id)}`;
+/** Build the image-generation prompt illustrating a single method step. */
+export function stepImagePrompt(cuisine: string, stepText: string): string {
+  const clean = stepText.replace(/\s+/g, ' ').slice(0, 220);
+  return `step-by-step cooking instruction photo: ${clean}. ${cuisine} cuisine, hands preparing food in a home kitchen, overhead angle, natural soft light, realistic instructional food photography, high detail`;
 }
 
 /**
- * A generated instructional image illustrating a single method step (keyless,
- * Pollinations). Deterministic per recipe+step so it's stable and cached.
+ * The image to show for a recipe: the user's uploaded photo if present,
+ * otherwise a dish photo generated to MATCH this specific recipe. Deterministic
+ * per recipe (fixed `seed`) so it's stable and cached, not random on every
+ * load. This is the keyless Pollinations fallback; when GEMINI_API_KEY is set,
+ * the detail hero + step guide upgrade to Gemini "Nano Banana" via /api/images.
  */
+export function recipeImageUrl(r: ImageableRecipe): string {
+  if (r.photo) return r.photo;
+  return pollinationsUrl(recipeImagePrompt(r.title, r.cuisine), 600, 400, hashId(r.id));
+}
+
+/** Keyless Pollinations instructional image for one method step. */
 export function stepImageUrl(recipeId: string, cuisine: string, stepIndex: number, stepText: string): string {
-  const clean = stepText.replace(/\s+/g, ' ').slice(0, 220);
-  const prompt = `step-by-step cooking instruction photo: ${clean}. ${cuisine} cuisine, hands preparing food in a home kitchen, overhead angle, natural soft light, realistic instructional food photography, high detail`;
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=340&nologo=true&seed=${hashId(recipeId + ':' + stepIndex)}`;
+  return pollinationsUrl(stepImagePrompt(cuisine, stepText), 512, 340, hashId(recipeId + ':' + stepIndex));
 }
 
 const CUISINE_EMOJI: Record<string, string> = {

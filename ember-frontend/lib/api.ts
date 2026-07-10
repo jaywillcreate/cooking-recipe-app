@@ -162,4 +162,13 @@ export const photoApi = {
     api<{ url: string }>('/api/photos', { body: { dataUrl, target } }),
 };
 
+export type ImageProvider = 'gemini' | 'pollinations' | 'user';
+export const imagesApi = {
+  /** Resolve a recipe hero (no stepIndex) or method-step image. */
+  generate: (recipeId: string, stepIndex?: number) =>
+    api<{ url: string; provider: ImageProvider }>('/api/images/generate', {
+      body: stepIndex === undefined ? { recipeId } : { recipeId, stepIndex },
+    }),
+};
+
 export { BASE as API_BASE };

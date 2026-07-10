@@ -192,6 +192,17 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_time ON audit_log(created_at);
 
+-- Durable cache of AI-generated recipe & step imagery (Gemini "Nano Banana").
+-- Gemini returns image bytes, which we store in Vercel Blob; this maps a
+-- deterministic cache key → the CDN URL so each image is generated only once.
+-- Also created lazily by lib/server/services/images.ts for zero-migration deploys.
+CREATE TABLE IF NOT EXISTS generated_images (
+  cache_key  TEXT PRIMARY KEY,
+  url        TEXT NOT NULL,
+  provider   TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE OR REPLACE FUNCTION touch_updated_at() RETURNS trigger AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
