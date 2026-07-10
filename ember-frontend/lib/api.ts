@@ -110,6 +110,11 @@ export const storesApi = {
   near: (zip: string) => api<StoreResult>(`/api/stores?zip=${encodeURIComponent(zip)}`),
 };
 
+export const shoppingApi = {
+  email: (body: { title: string; items: string[]; to?: string }) =>
+    api<{ sent: number; recipients: number; delivered: boolean }>('/api/shopping-list/email', { body }),
+};
+
 export const cookbookApi = {
   save: (recipeId: string) => api<{ saved: boolean; count: number }>(`/api/cookbook/saves/${recipeId}`, { method: 'POST' }),
   unsave: (recipeId: string) => api<{ saved: boolean; count: number }>(`/api/cookbook/saves/${recipeId}`, { method: 'DELETE' }),

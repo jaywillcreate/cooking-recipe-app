@@ -152,3 +152,18 @@ export function renderRecipeEmail(
 
   return { subject: `${who} shared: ${recipe.title}`, html, text };
 }
+
+/** A shopping-list email (checkbox-style items for the store). */
+export function renderShoppingListEmail(title: string, items: string[]): { subject: string; html: string; text: string } {
+  const rows = items.map((i) => `<li style="margin:0 0 8px">☐ ${esc(i)}</li>`).join('');
+  const html = `<!doctype html><html><body style="margin:0;background:#faf5ec;font-family:Archivo,Helvetica,Arial,sans-serif;color:#241a12">
+  <div style="max-width:560px;margin:0 auto;padding:28px">
+    <div style="font-size:20px"><span style="font-family:'Brush Script MT',cursive;color:#c4552d;font-size:21px">Tasty</span><span style="font-weight:900;letter-spacing:-.5px">Ember<span style="color:#c4552d">.</span></span></div>
+    <p style="color:rgba(36,26,18,.65);font-size:13px;margin:6px 0 18px">Your shopping list 🛒</p>
+    <h1 style="font-size:24px;margin:0 0 14px;font-weight:800">${esc(title)}</h1>
+    <ul style="font-size:15px;line-height:1.6;padding-left:2px;margin:0;list-style:none">${rows}</ul>
+    <p style="color:rgba(36,26,18,.5);font-size:11px;margin-top:26px">${items.length} items · sent from TastyEmber.</p>
+  </div></body></html>`;
+  const text = `Shopping list — ${title}\n\n${items.map((i) => `☐ ${i}`).join('\n')}\n\n— via TastyEmber`;
+  return { subject: `🛒 Shopping list: ${title}`, html, text };
+}
