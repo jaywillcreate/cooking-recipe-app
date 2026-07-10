@@ -242,12 +242,12 @@ export function ShoppingList({ title, items }: { title: string; items: string[] 
                           <IconStore size={18} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                            <span style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, minWidth: 0 }}>
                             <span style={{ flex: 'none', fontSize: 11, fontWeight: 800, color: TIER_COLOR[s.priceTier] }}>{s.priceLabel}</span>
                             {lowest && <span style={{ flex: 'none', fontSize: 10, fontWeight: 800, color: '#fff', background: C.green, borderRadius: 6, padding: '1px 6px', textTransform: 'uppercase', letterSpacing: 0.5 }}>Lowest</span>}
+                            {s.address && <span style={{ fontSize: 11.5, color: C.muted55, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{s.address}</span>}
                           </div>
-                          {s.address && <div style={{ fontSize: 11.5, color: C.muted55, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address}</div>}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flex: 'none' }}>
                           <span style={{ fontSize: 15, fontWeight: 800, color: lowest ? C.green : C.ink }}>~${total}</span>
