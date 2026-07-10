@@ -254,7 +254,11 @@ export async function testBlobWrite(): Promise<{ ok: boolean; detail: string }> 
     });
     return { ok: true, detail: `wrote ${url}` };
   } catch (err) {
-    return { ok: false, detail: String(err).slice(0, 200) };
+    const msg = String(err);
+    const hint = /private|access/i.test(msg)
+      ? ' — this looks like a PRIVATE Blob store; create a PUBLIC one (access mode cannot be changed after creation) and reconnect'
+      : '';
+    return { ok: false, detail: msg.slice(0, 200) + hint };
   }
 }
 
