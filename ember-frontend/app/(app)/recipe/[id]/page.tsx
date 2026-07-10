@@ -287,13 +287,16 @@ export default function RecipeDetailPage() {
 
           {/* Cooking items needed */}
           <div style={{ marginTop: 34, paddingTop: 26, borderTop: `1px solid ${C.line}` }}>
-            <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust, marginBottom: 4 }}>Cooking items needed</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust }}>Cooking items needed</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: C.muted55, background: C.bg, borderRadius: 999, padding: '2px 9px' }}>{deriveEquipment(recipe.ingredients, recipe.steps).length}</span>
+            </div>
             <div style={{ fontSize: 12.5, color: C.muted55, marginBottom: 16 }}>Tools and equipment to have ready before you start.</div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))', gap: 10 }}>
               {deriveEquipment(recipe.ingredients, recipe.steps).map((eq) => (
-                <div key={eq.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: C.bg, border: `1px solid ${C.line}`, borderRadius: 12, padding: '10px 14px' }}>
-                  <span style={{ fontSize: 20 }} aria-hidden>{eq.emoji}</span>
-                  <span style={{ fontSize: 13.5, fontWeight: 600 }}>{eq.name}</span>
+                <div key={eq.name} style={{ display: 'flex', alignItems: 'center', gap: 11, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 13px' }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 10, flex: 'none', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }} aria-hidden>{eq.emoji}</div>
+                  <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>{eq.name}</span>
                 </div>
               ))}
             </div>

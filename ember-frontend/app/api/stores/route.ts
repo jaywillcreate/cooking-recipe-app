@@ -13,6 +13,19 @@ interface Store {
   address?: string;
   distanceMi: number;
   mapsUrl: string;
+  priceTier: 1 | 2 | 3;
+  priceLabel: '$' | '$$' | '$$$';
+}
+
+// Affordability heuristic by chain reputation (NOT live prices). 1 = budget.
+const BUDGET = /aldi|walmart|winco|food 4 less|foodmaxx|grocery outlet|save.?a.?lot|lidl|smart & final|costco|sam's club|superior|cardenas|el super|food.?4.?less|market basket|price ?rite|99 ranch|dollar/i;
+const PREMIUM = /whole foods|erewhon|gelson|bristol farms|eataly|central market|mollie stone|the fresh market|new seasons|metropolitan market|pavilions|balducci|citarella|dean & deluca/i;
+
+function classifyTier(name: string, brand?: string): { priceTier: 1 | 2 | 3; priceLabel: '$' | '$$' | '$$$' } {
+  const s = `${name} ${brand ?? ''}`;
+  if (BUDGET.test(s)) return { priceTier: 1, priceLabel: '$' };
+  if (PREMIUM.test(s)) return { priceTier: 3, priceLabel: '$$$' };
+  return { priceTier: 2, priceLabel: '$$' }; // mainstream / unknown
 }
 
 /** Fetch with a hard timeout so a slow upstream never hangs the request. */
@@ -89,6 +102,7 @@ export const GET = route(async (req: NextRequest) => {
             address,
             distanceMi: Math.round(milesBetween(geo.lat, geo.lon, lat, lon) * 10) / 10,
             mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.name + ' ' + (address ?? zip))}`,
+            ...classifyTier(t.name, t.brand),
           } as Store;
         })
         .filter((s): s is Store => s !== null)

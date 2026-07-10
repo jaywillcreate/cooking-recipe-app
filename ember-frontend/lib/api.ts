@@ -101,9 +101,18 @@ export const recipeApi = {
   feedback: (id: string, vote: 1 | -1 | 0) => api<{ vote: number }>(`/api/recipes/${id}/feedback`, { body: { vote } }),
 };
 
+export interface Store {
+  name: string;
+  brand?: string;
+  address?: string;
+  distanceMi: number;
+  mapsUrl: string;
+  priceTier: 1 | 2 | 3;
+  priceLabel: '$' | '$$' | '$$$';
+}
 export interface StoreResult {
   location: { zip: string; city: string; state: string };
-  stores: { name: string; brand?: string; address?: string; distanceMi: number; mapsUrl: string }[];
+  stores: Store[];
   mapsUrl: string;
 }
 export const storesApi = {
