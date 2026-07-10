@@ -291,7 +291,7 @@ export default function RecipeDetailPage() {
               <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust }}>Shopping list &amp; nearby stores</span>
             </div>
             <div style={{ fontSize: 12.5, color: C.muted55, marginBottom: 16 }}>Check off items, export or email your list, and find stores near you.</div>
-            <ShoppingList title={recipe.title} items={recipe.ingredients.map((ing) => scaleIngredient(ing, servings / BASE_SERVINGS))} />
+            <ShoppingList title={recipe.title} items={recipe.ingredients.map((ing) => scaleIngredient(ing, servings / BASE_SERVINGS))} factor={servings / BASE_SERVINGS} />
           </div>
 
           {/* Cooking items needed */}

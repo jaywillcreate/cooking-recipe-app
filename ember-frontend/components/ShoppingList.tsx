@@ -21,7 +21,7 @@ const BRAND: { re: RegExp; color: string }[] = [
 ];
 const brandColor = (name: string, fallback: string) => BRAND.find((b) => b.re.test(name))?.color ?? fallback;
 
-export function ShoppingList({ title, items }: { title: string; items: string[] }) {
+export function ShoppingList({ title, items, factor = 1 }: { title: string; items: string[]; factor?: number }) {
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [copied, setCopied] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
@@ -67,7 +67,8 @@ export function ShoppingList({ title, items }: { title: string; items: string[] 
   const listText = `Shopping list — ${title}\n\n${items.map((i) => `☐ ${i}`).join('\n')}\n\n— via TastyEmber`;
   const gathered = checked.size;
   const pct = items.length ? Math.round((gathered / items.length) * 100) : 0;
-  const base = useMemo(() => estimateBasketBase(items), [items]);
+  // Scale the estimate by the serving factor (buying ~N× more of everything).
+  const base = useMemo(() => estimateBasketBase(items) * factor, [items, factor]);
   const minTotal = useMemo(() => (result ? Math.min(...result.stores.map((s) => estimateBasketAt(base, s.priceTier)), Infinity) : Infinity), [result, base]);
 
   const sortedStores = useMemo<Store[]>(() => {
