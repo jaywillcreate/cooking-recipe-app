@@ -29,6 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   // runs a live Blob write, so the exact failure is visible from the outside.
   if (req.nextUrl.searchParams.get('debug') === '1') {
     const blobTokenNames = Object.keys(process.env).filter((k) => k.endsWith('BLOB_READ_WRITE_TOKEN'));
+    const allBlobEnvNames = Object.keys(process.env).filter((k) => /BLOB/i.test(k));
     const blobWriteTest = await testBlobWrite();
     return NextResponse.json({
       geminiEnabled: config.geminiEnabled,
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       hasBlobToken: !!blobToken(),
       blobTokenCount: blobTokenNames.length,
       blobTokenNames,
+      allBlobEnvNames,
       blobWriteTest,
     });
   }
