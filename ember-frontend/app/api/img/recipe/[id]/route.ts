@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { queryOne } from '@/lib/server/db';
 import { assertRateLimit } from '@/lib/server/services/rateLimit';
-import { peekCachedImage, resolveGeneratedImage } from '@/lib/server/services/images';
+import { peekCachedImage, resolveGeneratedImage, testBlobWrite, blobToken } from '@/lib/server/services/images';
+import { config } from '@/lib/server/config';
 import { clientIp } from '@/lib/server/http';
 import { recipeImagePrompt, hashId, accentFor } from '@/lib/tokens';
 
@@ -24,6 +25,21 @@ const CACHE_VERSION = 'v2';
  * — gated only by an IP rate limit. It never exposes user-uploaded photos.
  */
 export async function GET(req: NextRequest, { params }: { params: { id: string } }): Promise<Response> {
+  // ?debug=1 reports the deployed image-pipeline state (no secret values) and
+  // runs a live Blob write, so the exact failure is visible from the outside.
+  if (req.nextUrl.searchParams.get('debug') === '1') {
+    const blobTokenNames = Object.keys(process.env).filter((k) => k.endsWith('BLOB_READ_WRITE_TOKEN'));
+    const blobWriteTest = await testBlobWrite();
+    return NextResponse.json({
+      geminiEnabled: config.geminiEnabled,
+      geminiModel: config.geminiImageModel,
+      hasBlobToken: !!blobToken(),
+      blobTokenCount: blobTokenNames.length,
+      blobTokenNames,
+      blobWriteTest,
+    });
+  }
+
   const id = z.string().uuid().safeParse(params.id);
   if (!id.success) return placeholder('American');
 
