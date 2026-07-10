@@ -30,6 +30,18 @@ const DEFAULT_SIZE = { width: 600, height: 400 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * The Vercel Blob read/write token. Normally `BLOB_READ_WRITE_TOKEN`, but when a
+ * store is connected with a custom env-var prefix Vercel names it
+ * `<PREFIX>_BLOB_READ_WRITE_TOKEN` — the SDK only auto-reads the unprefixed
+ * name, so we detect either and pass it explicitly.
+ */
+export function blobToken(): string | undefined {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return process.env.BLOB_READ_WRITE_TOKEN;
+  const key = Object.keys(process.env).find((k) => k.endsWith('BLOB_READ_WRITE_TOKEN'));
+  return key ? process.env[key] : undefined;
+}
+
 // Create the cache table lazily (once per warm instance) so the feature works
 // without a separate migration step on the user's push-to-Vercel deploy flow.
 let ensured: Promise<void> | null = null;
@@ -193,6 +205,7 @@ async function uploadAndCache(cacheKey: string, img: Generated, provider: string
   const { url } = await put(`ember/gen/${crypto.randomBytes(16).toString('hex')}.${ext}`, img.buffer, {
     access: 'public',
     contentType: img.mime,
+    token: blobToken(),
   });
   // If two requests raced, the first winner's URL stays; ours is a harmless orphan.
   await query(
@@ -230,13 +243,14 @@ export async function testGeminiImage(): Promise<{ ok: boolean; detail: string }
 
 /** Live check that Vercel Blob is connected and writable. For admin diagnostics. */
 export async function testBlobWrite(): Promise<{ ok: boolean; detail: string }> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    return { ok: false, detail: 'BLOB_READ_WRITE_TOKEN is not set — connect a Vercel Blob store to this project' };
+  if (!blobToken()) {
+    return { ok: false, detail: 'No *BLOB_READ_WRITE_TOKEN found — connect a Vercel Blob store to this project and redeploy' };
   }
   try {
     const { url } = await put(`ember/diag-${crypto.randomBytes(6).toString('hex')}.txt`, 'ok', {
       access: 'public',
       contentType: 'text/plain',
+      token: blobToken(),
     });
     return { ok: true, detail: `wrote ${url}` };
   } catch (err) {

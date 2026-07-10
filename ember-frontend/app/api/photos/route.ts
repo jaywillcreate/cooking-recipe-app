@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { z } from 'zod';
 import { put } from '@vercel/blob';
 import { route, requireUser, readBody, json, badRequest, notFound } from '@/lib/server/http';
+import { blobToken } from '@/lib/server/services/images';
 import { query } from '@/lib/server/db';
 import { getVisibleRecipe } from '@/lib/server/services/recipes';
 import type { NextRequest } from 'next/server';
@@ -39,6 +40,7 @@ export const POST = route(async (req: NextRequest) => {
   const { url } = await put(`ember/${crypto.randomBytes(16).toString('hex')}.${ext}`, buf, {
     access: 'public',
     contentType: m[1]!,
+    token: blobToken(),
   });
 
   if (target.kind === 'avatar') {

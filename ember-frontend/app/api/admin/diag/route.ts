@@ -1,7 +1,7 @@
 import { route, requireUser, json, forbidden } from '@/lib/server/http';
 import { config } from '@/lib/server/config';
 import { emailConfigured } from '@/lib/server/services/email';
-import { testGeminiImage, testBlobWrite } from '@/lib/server/services/images';
+import { testGeminiImage, testBlobWrite, blobToken } from '@/lib/server/services/images';
 import type { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +27,7 @@ export const GET = route(async (req: NextRequest) => {
     images: {
       geminiEnabled: config.geminiEnabled,
       geminiModel: config.geminiImageModel,
-      hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
+      hasBlobToken: !!blobToken(),
       hasPollinationsToken: !!config.pollinationsToken,
       pollinationsReferrer: config.pollinationsReferrer,
       ...(liveTest ? { geminiLiveTest: liveTest } : {}),
