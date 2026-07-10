@@ -1,14 +1,20 @@
 import { route, requireUser, json, forbidden } from '@/lib/server/http';
 import { config } from '@/lib/server/config';
 import { emailConfigured } from '@/lib/server/services/email';
+import { testGeminiImage } from '@/lib/server/services/images';
 import type { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 45;
 
 /** Admin-only config diagnostics (booleans only — never leaks secret values). */
 export const GET = route(async (req: NextRequest) => {
   const u = requireUser(req);
   if (u.role !== 'admin') throw forbidden('Admin only');
+
+  // ?test=image runs one live Gemini generation to confirm the key/model work.
+  const liveTest = req.nextUrl.searchParams.get('test') === 'image' ? await testGeminiImage() : undefined;
+
   return json({
     email: {
       provider: config.emailProvider,
@@ -16,6 +22,14 @@ export const GET = route(async (req: NextRequest) => {
       hasBrevoKey: !!config.brevoApiKey,
       hasResendKey: !!config.resendApiKey,
       from: config.emailFrom,
+    },
+    images: {
+      geminiEnabled: config.geminiEnabled,
+      geminiModel: config.geminiImageModel,
+      hasBlobToken: !!process.env.BLOB_READ_WRITE_TOKEN,
+      hasPollinationsToken: !!config.pollinationsToken,
+      pollinationsReferrer: config.pollinationsReferrer,
+      ...(liveTest ? { geminiLiveTest: liveTest } : {}),
     },
     appOrigin: config.appOrigin,
     cronSecretSet: !!config.cronSecret,

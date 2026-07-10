@@ -77,15 +77,17 @@ async function generateWithGemini(prompt: string, reference?: InlineImage): Prom
   if (reference) parts.push({ inlineData: { mimeType: reference.mime, data: reference.data } });
   parts.push({ text: prompt });
 
-  // A wide frame suits the recipe/step cards, but `imageConfig` is a newer field
-  // — if this API version rejects it we retry without it rather than failing.
-  const result = await callGemini(key, parts, { imageConfig: { aspectRatio: '4:3' } });
-  if (result !== 'config-rejected') return result;
-  const retry = await callGemini(key, parts, undefined);
-  return retry === 'config-rejected' ? null : retry;
+  // Attempt 1: richest request (explicit IMAGE modality + a wide 4:3 frame).
+  // Attempt 2: the canonical bare Nano-Banana request, which is proven to return
+  // an image. We fall back if the API version rejects the config OR returns no
+  // image part — so a version quirk can never silently disable Gemini.
+  const first = await callGemini(key, parts, { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '4:3' } });
+  if (first !== 'retry') return first;
+  const second = await callGemini(key, parts, undefined);
+  return second === 'retry' ? null : second;
 }
 
-type GeminiResult = Generated | null | 'config-rejected';
+type GeminiResult = Generated | null | 'retry';
 
 async function callGemini(key: string, parts: unknown[], generationConfig?: Record<string, unknown>): Promise<GeminiResult> {
   const ctrl = new AbortController();
@@ -104,7 +106,8 @@ async function callGemini(key: string, parts: unknown[], generationConfig?: Reco
     );
     if (!res.ok) {
       const text = (await res.text()).slice(0, 300);
-      if (res.status === 400 && generationConfig) return 'config-rejected';
+      // A 400 while sending the optional config → retry the bare request instead.
+      if (res.status === 400 && generationConfig) return 'retry';
       logger.warn({ status: res.status, body: text }, 'Gemini image request failed');
       return null;
     }
@@ -117,6 +120,8 @@ async function callGemini(key: string, parts: unknown[], generationConfig?: Reco
         return { buffer: Buffer.from(b64, 'base64'), mime: EXT[mime] ? mime : 'image/png' };
       }
     }
+    // 200 but no image part — retry the bare request once before giving up.
+    if (generationConfig) return 'retry';
     logger.warn('Gemini image response contained no image part');
     return null;
   } catch (err) {
@@ -205,6 +210,23 @@ async function getCached(cacheKey: string): Promise<string | null> {
 }
 
 // ─── Public resolvers ────────────────────────────────────────────────────────
+
+/**
+ * One-shot live check that the Gemini image API is reachable and returns an
+ * image with the configured key/model. Does not upload or cache. For admin
+ * diagnostics only.
+ */
+export async function testGeminiImage(): Promise<{ ok: boolean; detail: string }> {
+  if (!config.geminiEnabled) return { ok: false, detail: 'GEMINI_API_KEY is not set' };
+  try {
+    const img = await generateWithGemini('a single red apple on a white plate, simple food photography');
+    return img
+      ? { ok: true, detail: `ok — received ${img.mime}, ${img.buffer.byteLength.toLocaleString()} bytes` }
+      : { ok: false, detail: 'no image returned — see function logs for the Gemini error/status' };
+  } catch (err) {
+    return { ok: false, detail: String(err).slice(0, 200) };
+  }
+}
 
 /** Return a cached Blob URL for `cacheKey` without generating anything. */
 export async function peekCachedImage(cacheKey: string): Promise<string | null> {
