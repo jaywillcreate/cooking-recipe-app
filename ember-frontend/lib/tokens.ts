@@ -173,6 +173,16 @@ export function recipeImageUrl(r: ImageableRecipe): string {
   return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=600&height=400&nologo=true&seed=${hashId(r.id)}`;
 }
 
+/**
+ * A generated instructional image illustrating a single method step (keyless,
+ * Pollinations). Deterministic per recipe+step so it's stable and cached.
+ */
+export function stepImageUrl(recipeId: string, cuisine: string, stepIndex: number, stepText: string): string {
+  const clean = stepText.replace(/\s+/g, ' ').slice(0, 220);
+  const prompt = `step-by-step cooking instruction photo: ${clean}. ${cuisine} cuisine, hands preparing food in a home kitchen, overhead angle, natural soft light, realistic instructional food photography, high detail`;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=340&nologo=true&seed=${hashId(recipeId + ':' + stepIndex)}`;
+}
+
 const CUISINE_EMOJI: Record<string, string> = {
   Italian: '🍝', Japanese: '🍱', Thai: '🍜', Mexican: '🌮', Indian: '🍛',
   Korean: '🍲', Mediterranean: '🥙', French: '🥐', American: '🍔', Baking: '🍪',

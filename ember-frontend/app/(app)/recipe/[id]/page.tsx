@@ -10,6 +10,7 @@ import { Spinner } from '@/components/Spinner';
 import { Feedback } from '@/components/Feedback';
 import { ShoppingList } from '@/components/ShoppingList';
 import { KitchenIcon } from '@/components/KitchenIcons';
+import { StepImage } from '@/components/StepImage';
 import { deriveEquipment } from '@/lib/equipment';
 
 const servBtn: React.CSSProperties = {
@@ -34,6 +35,7 @@ export default function RecipeDetailPage() {
   const [emailMsg, setEmailMsg] = useState<string | null>(null);
   const [emailErr, setEmailErr] = useState<string | null>(null);
   const [servings, setServings] = useState(BASE_SERVINGS);
+  const [showStepImages, setShowStepImages] = useState(false);
 
   async function sendRecipeEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -271,17 +273,33 @@ export default function RecipeDetailPage() {
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust, marginBottom: 14 }}>Method</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust }}>Method</div>
+                <button
+                  onClick={() => setShowStepImages((v) => !v)}
+                  style={{ fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: '7px 14px', borderRadius: 999, border: `1.5px solid ${showStepImages ? C.green : C.line22}`, background: showStepImages ? C.green : 'transparent', color: showStepImages ? '#fff' : C.muted75, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  ✦ {showStepImages ? 'Hide visual guide' : 'Visual guide'}
+                </button>
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {recipe.steps.map((s, i) => (
                   <div key={i} style={{ display: 'flex', gap: 14 }}>
                     <div style={{ width: 28, height: 28, borderRadius: '50%', background: C.dark, color: C.bg, fontSize: 12.5, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
                       {i + 1}
                     </div>
-                    <div style={{ fontSize: 14, lineHeight: 1.6, paddingTop: 3 }}>{s}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, lineHeight: 1.6, paddingTop: 3 }}>{s}</div>
+                      {showStepImages && <StepImage recipeId={recipe.id} cuisine={recipe.cuisine} index={i} text={s} />}
+                    </div>
                   </div>
                 ))}
               </div>
+              {showStepImages && (
+                <div style={{ fontSize: 11, color: C.muted55, marginTop: 12, lineHeight: 1.5 }}>
+                  ✦ AI-generated illustrations to guide each step — a visual aid, not exact photos of your dish.
+                </div>
+              )}
             </div>
           </div>
 
