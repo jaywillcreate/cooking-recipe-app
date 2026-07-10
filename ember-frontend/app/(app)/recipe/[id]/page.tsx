@@ -9,6 +9,7 @@ import { ImageUpload } from '@/components/ImageUpload';
 import { Spinner } from '@/components/Spinner';
 import { Feedback } from '@/components/Feedback';
 import { ShoppingList } from '@/components/ShoppingList';
+import { KitchenIcon } from '@/components/KitchenIcons';
 import { deriveEquipment } from '@/lib/equipment';
 
 const servBtn: React.CSSProperties = {
@@ -268,7 +269,6 @@ export default function RecipeDetailPage() {
                   <div>{n.fat}g fat</div>
                 </div>
               </div>
-              <ShoppingList title={recipe.title} items={recipe.ingredients.map((ing) => scaleIngredient(ing, servings / BASE_SERVINGS))} />
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust, marginBottom: 14 }}>Method</div>
@@ -285,6 +285,15 @@ export default function RecipeDetailPage() {
             </div>
           </div>
 
+          {/* Shopping list & nearby stores (full-width, balanced) */}
+          <div style={{ marginTop: 34, paddingTop: 26, borderTop: `1px solid ${C.line}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust }}>Shopping list &amp; nearby stores</span>
+            </div>
+            <div style={{ fontSize: 12.5, color: C.muted55, marginBottom: 16 }}>Check off items, export or email your list, and find stores near you.</div>
+            <ShoppingList title={recipe.title} items={recipe.ingredients.map((ing) => scaleIngredient(ing, servings / BASE_SERVINGS))} />
+          </div>
+
           {/* Cooking items needed */}
           <div style={{ marginTop: 34, paddingTop: 26, borderTop: `1px solid ${C.line}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -292,10 +301,12 @@ export default function RecipeDetailPage() {
               <span style={{ fontSize: 11, fontWeight: 800, color: C.muted55, background: C.bg, borderRadius: 999, padding: '2px 9px' }}>{deriveEquipment(recipe.ingredients, recipe.steps).length}</span>
             </div>
             <div style={{ fontSize: 12.5, color: C.muted55, marginBottom: 16 }}>Tools and equipment to have ready before you start.</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
               {deriveEquipment(recipe.ingredients, recipe.steps).map((eq) => (
                 <div key={eq.name} style={{ display: 'flex', alignItems: 'center', gap: 11, background: C.surface, border: `1px solid ${C.line}`, borderRadius: 12, padding: '11px 13px' }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 10, flex: 'none', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }} aria-hidden>{eq.emoji}</div>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, flex: 'none', background: 'rgba(196,85,45,0.1)', color: C.rust, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <KitchenIcon name={eq.icon} size={22} />
+                  </div>
                   <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.2 }}>{eq.name}</span>
                 </div>
               ))}

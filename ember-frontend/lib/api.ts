@@ -111,7 +111,7 @@ export interface Store {
   priceLabel: '$' | '$$' | '$$$';
 }
 export interface StoreResult {
-  location: { zip: string; city: string; state: string };
+  location: { zip: string; city: string; state: string; lat: number; lon: number };
   stores: Store[];
   mapsUrl: string;
 }

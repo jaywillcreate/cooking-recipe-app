@@ -113,5 +113,5 @@ export const GET = route(async (req: NextRequest) => {
     logger.warn({ err: String(err), zip }, 'Overpass store lookup failed');
   }
 
-  return json({ location: { zip, city: geo.city, state: geo.state }, stores, mapsUrl });
+  return json({ location: { zip, city: geo.city, state: geo.state, lat: geo.lat, lon: geo.lon }, stores, mapsUrl });
 });
