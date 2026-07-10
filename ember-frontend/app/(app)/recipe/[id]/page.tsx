@@ -8,6 +8,8 @@ import { C, chipStyle, recipeImageUrl, scaleIngredient, BASE_SERVINGS } from '@/
 import { ImageUpload } from '@/components/ImageUpload';
 import { Spinner } from '@/components/Spinner';
 import { Feedback } from '@/components/Feedback';
+import { ShoppingList } from '@/components/ShoppingList';
+import { deriveEquipment } from '@/lib/equipment';
 
 const servBtn: React.CSSProperties = {
   width: 26, height: 26, borderRadius: '50%', border: `1.5px solid ${C.line22}`, background: '#fff',
@@ -266,6 +268,7 @@ export default function RecipeDetailPage() {
                   <div>{n.fat}g fat</div>
                 </div>
               </div>
+              <ShoppingList title={recipe.title} items={recipe.ingredients.map((ing) => scaleIngredient(ing, servings / BASE_SERVINGS))} />
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust, marginBottom: 14 }}>Method</div>
@@ -279,6 +282,20 @@ export default function RecipeDetailPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Cooking items needed */}
+          <div style={{ marginTop: 34, paddingTop: 26, borderTop: `1px solid ${C.line}` }}>
+            <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust, marginBottom: 4 }}>Cooking items needed</div>
+            <div style={{ fontSize: 12.5, color: C.muted55, marginBottom: 16 }}>Tools and equipment to have ready before you start.</div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {deriveEquipment(recipe.ingredients, recipe.steps).map((eq) => (
+                <div key={eq.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: C.bg, border: `1px solid ${C.line}`, borderRadius: 12, padding: '10px 14px' }}>
+                  <span style={{ fontSize: 20 }} aria-hidden>{eq.emoji}</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 600 }}>{eq.name}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

@@ -101,6 +101,15 @@ export const recipeApi = {
   feedback: (id: string, vote: 1 | -1 | 0) => api<{ vote: number }>(`/api/recipes/${id}/feedback`, { body: { vote } }),
 };
 
+export interface StoreResult {
+  location: { zip: string; city: string; state: string };
+  stores: { name: string; brand?: string; address?: string; distanceMi: number; mapsUrl: string }[];
+  mapsUrl: string;
+}
+export const storesApi = {
+  near: (zip: string) => api<StoreResult>(`/api/stores?zip=${encodeURIComponent(zip)}`),
+};
+
 export const cookbookApi = {
   save: (recipeId: string) => api<{ saved: boolean; count: number }>(`/api/cookbook/saves/${recipeId}`, { method: 'POST' }),
   unsave: (recipeId: string) => api<{ saved: boolean; count: number }>(`/api/cookbook/saves/${recipeId}`, { method: 'DELETE' }),
