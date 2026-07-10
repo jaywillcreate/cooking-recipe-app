@@ -1,7 +1,7 @@
 import { route, requireUser, json, forbidden } from '@/lib/server/http';
 import { config } from '@/lib/server/config';
 import { emailConfigured } from '@/lib/server/services/email';
-import { testGeminiImage } from '@/lib/server/services/images';
+import { testGeminiImage, testBlobWrite } from '@/lib/server/services/images';
 import type { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -12,8 +12,9 @@ export const GET = route(async (req: NextRequest) => {
   const u = requireUser(req);
   if (u.role !== 'admin') throw forbidden('Admin only');
 
-  // ?test=image runs one live Gemini generation to confirm the key/model work.
-  const liveTest = req.nextUrl.searchParams.get('test') === 'image' ? await testGeminiImage() : undefined;
+  // ?test=image runs the live pipeline: one Gemini generation + one Blob write.
+  const runTest = req.nextUrl.searchParams.get('test') === 'image';
+  const [liveTest, blobTest] = runTest ? await Promise.all([testGeminiImage(), testBlobWrite()]) : [undefined, undefined];
 
   return json({
     email: {
@@ -30,6 +31,7 @@ export const GET = route(async (req: NextRequest) => {
       hasPollinationsToken: !!config.pollinationsToken,
       pollinationsReferrer: config.pollinationsReferrer,
       ...(liveTest ? { geminiLiveTest: liveTest } : {}),
+      ...(blobTest ? { blobWriteTest: blobTest } : {}),
     },
     appOrigin: config.appOrigin,
     cronSecretSet: !!config.cronSecret,

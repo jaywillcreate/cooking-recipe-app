@@ -228,6 +228,22 @@ export async function testGeminiImage(): Promise<{ ok: boolean; detail: string }
   }
 }
 
+/** Live check that Vercel Blob is connected and writable. For admin diagnostics. */
+export async function testBlobWrite(): Promise<{ ok: boolean; detail: string }> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return { ok: false, detail: 'BLOB_READ_WRITE_TOKEN is not set — connect a Vercel Blob store to this project' };
+  }
+  try {
+    const { url } = await put(`ember/diag-${crypto.randomBytes(6).toString('hex')}.txt`, 'ok', {
+      access: 'public',
+      contentType: 'text/plain',
+    });
+    return { ok: true, detail: `wrote ${url}` };
+  } catch (err) {
+    return { ok: false, detail: String(err).slice(0, 200) };
+  }
+}
+
 /** Return a cached Blob URL for `cacheKey` without generating anything. */
 export async function peekCachedImage(cacheKey: string): Promise<string | null> {
   try {
