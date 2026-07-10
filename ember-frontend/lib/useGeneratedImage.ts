@@ -2,6 +2,17 @@
 import { useEffect, useState } from 'react';
 import { imagesApi } from './api';
 
+interface Opts {
+  stepIndex?: number;
+  /**
+   * When false, the request is held. Step images pass the hero's readiness here
+   * so the anchor image is generated & cached first — then every step resolves
+   * against that one hero, keeping the series visually consistent (and avoiding
+   * duplicate anchor generations).
+   */
+  enabled?: boolean;
+}
+
 /**
  * Resolve the image for a recipe hero (omit `stepIndex`) or a method step.
  * Starts from the keyless Pollinations `fallbackUrl` (instant), then swaps in
@@ -9,11 +20,8 @@ import { imagesApi } from './api';
  * true when the endpoint has responded (success or not) — callers that prefer a
  * skeleton over the fallback can gate on it.
  */
-export function useGeneratedImage(
-  recipeId: string,
-  fallbackUrl: string,
-  stepIndex?: number,
-): { url: string; ready: boolean } {
+export function useGeneratedImage(recipeId: string, fallbackUrl: string, opts: Opts = {}): { url: string; ready: boolean } {
+  const { stepIndex, enabled = true } = opts;
   const [url, setUrl] = useState(fallbackUrl);
   const [ready, setReady] = useState(false);
 
@@ -21,7 +29,7 @@ export function useGeneratedImage(
     let alive = true;
     setReady(false);
     setUrl(fallbackUrl);
-    if (!recipeId) return;
+    if (!recipeId || !enabled) return;
     imagesApi
       .generate(recipeId, stepIndex)
       .then((r) => {
@@ -36,7 +44,7 @@ export function useGeneratedImage(
     return () => {
       alive = false;
     };
-  }, [recipeId, stepIndex, fallbackUrl]);
+  }, [recipeId, stepIndex, fallbackUrl, enabled]);
 
   return { url, ready };
 }

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { route, requireUser, readBody, json, notFound } from '@/lib/server/http';
 import { assertRateLimit } from '@/lib/server/services/rateLimit';
 import { getVisibleRecipe } from '@/lib/server/services/recipes';
-import { peekCachedImage, resolveGeneratedImage } from '@/lib/server/services/images';
+import { peekCachedImage, resolveGeneratedImage, resolveStepImage } from '@/lib/server/services/images';
 import { config } from '@/lib/server/config';
 import {
   recipeImagePrompt,
@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 45; // Gemini generation can take a while
 
 // Bump the version suffix to invalidate all cached images after a prompt change.
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 
 const schema = z.object({
   recipeId: z.string().uuid(),
@@ -41,7 +41,11 @@ export const POST = route(async (req: NextRequest) => {
   const stepText = isStep ? recipe.steps?.[stepIndex] : undefined;
   if (isStep && !stepText) throw notFound('Step not found');
 
-  const prompt = isStep ? stepImagePrompt(recipe.cuisine, stepText!) : recipeImagePrompt(recipe.title, recipe.cuisine);
+  // The hero anchor prompt is shared so step images can lock to the same scene.
+  const anchorPrompt = recipeImagePrompt(recipe.title, recipe.cuisine);
+  const anchorCacheKey = `recipe:${recipeId}:${CACHE_VERSION}`;
+
+  const prompt = isStep ? stepImagePrompt(recipe.cuisine, stepText!, recipe.title) : anchorPrompt;
   const fallback = isStep
     ? pollinationsUrl(prompt, 512, 340, hashId(`${recipeId}:${stepIndex}`))
     : pollinationsUrl(prompt, 600, 400, hashId(recipeId));
@@ -49,7 +53,7 @@ export const POST = route(async (req: NextRequest) => {
   // A user's uploaded dish photo always wins for the hero.
   if (!isStep && recipe.photo_url) return json({ url: recipe.photo_url, provider: 'user' });
 
-  const cacheKey = isStep ? `step:${recipeId}:${stepIndex}:${CACHE_VERSION}` : `recipe:${recipeId}:${CACHE_VERSION}`;
+  const cacheKey = isStep ? `step:${recipeId}:${stepIndex}:${CACHE_VERSION}` : anchorCacheKey;
 
   // Serve cache hits (and the Pollinations path) without touching the spend cap.
   const cached = await peekCachedImage(cacheKey);
@@ -58,6 +62,8 @@ export const POST = route(async (req: NextRequest) => {
 
   // Cache miss + Gemini enabled → this call may spend money; enforce the cap.
   await assertRateLimit(`img:day:${u.id}`, config.geminiImageDailyLimit, 86_400, 'Daily image-generation limit reached.');
-  const url = await resolveGeneratedImage(cacheKey, prompt);
+  const url = isStep
+    ? await resolveStepImage({ cacheKey, stepPrompt: prompt, anchorCacheKey, anchorPrompt })
+    : await resolveGeneratedImage(cacheKey, prompt);
   return json(url ? { url, provider: 'gemini' } : { url: fallback, provider: 'pollinations' });
 });

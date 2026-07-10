@@ -162,15 +162,23 @@ export function pollinationsUrl(prompt: string, width: number, height: number, s
   return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
 }
 
+/**
+ * Shared photographic style so a recipe's hero and every step read as one
+ * coherent, high-quality series shot in the same kitchen.
+ */
+const KITCHEN_STYLE =
+  'shot in a warm modern home kitchen on a light wooden countertop, soft natural window light, shallow depth of field, realistic high-resolution DSLR food photography, magazine quality, sharp focus, appetizing, no text or watermarks';
+
 /** Build the image-generation prompt for a specific recipe's finished dish. */
 export function recipeImagePrompt(title: string, cuisine: string): string {
-  return `appetizing professional food photography of ${title}, ${cuisine} cuisine, plated on a dish, natural soft light, top-down, high detail`;
+  return `Appetizing overhead hero photo of the finished dish "${title}" (${cuisine} cuisine), beautifully plated on a ceramic plate, garnished, ${KITCHEN_STYLE}.`;
 }
 
 /** Build the image-generation prompt illustrating a single method step. */
-export function stepImagePrompt(cuisine: string, stepText: string): string {
-  const clean = stepText.replace(/\s+/g, ' ').slice(0, 220);
-  return `step-by-step cooking instruction photo: ${clean}. ${cuisine} cuisine, hands preparing food in a home kitchen, overhead angle, natural soft light, realistic instructional food photography, high detail`;
+export function stepImagePrompt(cuisine: string, stepText: string, title?: string): string {
+  const clean = stepText.replace(/\s+/g, ' ').slice(0, 260);
+  const dish = title ? ` while making "${title}" (${cuisine} cuisine)` : ` (${cuisine} cuisine)`;
+  return `Clear instructional cooking photo${dish} showing exactly this step: ${clean}. Hands actively performing the action with the relevant ingredients and cookware in frame, natural close-up angle, ${KITCHEN_STYLE}.`;
 }
 
 /**
@@ -186,8 +194,8 @@ export function recipeImageUrl(r: ImageableRecipe): string {
 }
 
 /** Keyless Pollinations instructional image for one method step. */
-export function stepImageUrl(recipeId: string, cuisine: string, stepIndex: number, stepText: string): string {
-  return pollinationsUrl(stepImagePrompt(cuisine, stepText), 512, 340, hashId(recipeId + ':' + stepIndex));
+export function stepImageUrl(recipeId: string, cuisine: string, stepIndex: number, stepText: string, title?: string): string {
+  return pollinationsUrl(stepImagePrompt(cuisine, stepText, title), 512, 340, hashId(recipeId + ':' + stepIndex));
 }
 
 const CUISINE_EMOJI: Record<string, string> = {

@@ -39,7 +39,7 @@ export default function RecipeDetailPage() {
   const [showStepImages, setShowStepImages] = useState(false);
   // Hero dish image: Gemini "Nano Banana" when configured, else Pollinations.
   const heroFallback = recipe ? recipeImageUrl({ ...recipe, photo: null }) : '';
-  const { url: heroImageUrl } = useGeneratedImage(recipe?.id ?? '', heroFallback);
+  const { url: heroImageUrl, ready: heroReady } = useGeneratedImage(recipe?.id ?? '', heroFallback);
 
   async function sendRecipeEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -294,14 +294,14 @@ export default function RecipeDetailPage() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14, lineHeight: 1.6, paddingTop: 3 }}>{s}</div>
-                      {showStepImages && <StepImage recipeId={recipe.id} cuisine={recipe.cuisine} index={i} text={s} />}
+                      {showStepImages && <StepImage recipeId={recipe.id} cuisine={recipe.cuisine} index={i} text={s} title={recipe.title} anchorReady={heroReady} />}
                     </div>
                   </div>
                 ))}
               </div>
               {showStepImages && (
                 <div style={{ fontSize: 11, color: C.muted55, marginTop: 12, lineHeight: 1.5 }}>
-                  ✦ AI-generated illustrations to guide each step — a visual aid, not exact photos of your dish.
+                  ✦ AI-generated illustrations, styled as one consistent kitchen across every step — a visual aid, not exact photos of your dish.
                 </div>
               )}
             </div>

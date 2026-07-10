@@ -9,9 +9,9 @@ import { useGeneratedImage } from '@/lib/useGeneratedImage';
  * shimmer skeleton while generating, and hides itself if the image fails so a
  * broken image never appears.
  */
-export function StepImage({ recipeId, cuisine, index, text }: { recipeId: string; cuisine: string; index: number; text: string }) {
-  const fallback = stepImageUrl(recipeId, cuisine, index, text);
-  const { url, ready } = useGeneratedImage(recipeId, fallback, index);
+export function StepImage({ recipeId, cuisine, index, text, title, anchorReady = true }: { recipeId: string; cuisine: string; index: number; text: string; title?: string; anchorReady?: boolean }) {
+  const fallback = stepImageUrl(recipeId, cuisine, index, text, title);
+  const { url, ready } = useGeneratedImage(recipeId, fallback, { stepIndex: index, enabled: anchorReady });
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   if (failed) return null;
