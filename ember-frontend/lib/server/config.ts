@@ -59,6 +59,12 @@ export const config = {
   // (each image ≈ $0.039). Cached images don't count against this.
   geminiImageDailyLimit: parseInt(process.env.GEMINI_IMAGE_DAILY_LIMIT ?? '150', 10),
 
+  // Pollinations image fallback (used server-side, cached to Blob). Optional
+  // token/referrer lift the anonymous per-IP rate limit — register at
+  // https://enter.pollinations.ai. Referrer defaults to the app name.
+  pollinationsToken: process.env.POLLINATIONS_TOKEN,
+  pollinationsReferrer: process.env.POLLINATIONS_REFERRER ?? 'tastyember.app',
+
   emailProvider: (process.env.EMAIL_PROVIDER ?? 'console') as 'resend' | 'brevo' | 'console',
   emailFrom: process.env.EMAIL_FROM ?? 'TastyEmber <hello@ember.app>',
   resendApiKey: process.env.RESEND_API_KEY,

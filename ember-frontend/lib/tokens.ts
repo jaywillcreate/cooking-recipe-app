@@ -183,14 +183,15 @@ export function stepImagePrompt(cuisine: string, stepText: string, title?: strin
 
 /**
  * The image to show for a recipe: the user's uploaded photo if present,
- * otherwise a dish photo generated to MATCH this specific recipe. Deterministic
- * per recipe (fixed `seed`) so it's stable and cached, not random on every
- * load. This is the keyless Pollinations fallback; when GEMINI_API_KEY is set,
- * the detail hero + step guide upgrade to Gemini "Nano Banana" via /api/images.
+ * otherwise our same-origin image proxy (/api/img/recipe/:id). The proxy
+ * resolves to a cached Vercel Blob image (generated once via Gemini "Nano
+ * Banana" or server-side Pollinations) — so the browser never calls an image
+ * provider directly and per-IP rate limits can't break a gallery of thumbnails.
+ * Usable as an <img src> or a CSS background URL.
  */
 export function recipeImageUrl(r: ImageableRecipe): string {
   if (r.photo) return r.photo;
-  return pollinationsUrl(recipeImagePrompt(r.title, r.cuisine), 600, 400, hashId(r.id));
+  return `/api/img/recipe/${r.id}`;
 }
 
 /** Keyless Pollinations instructional image for one method step. */

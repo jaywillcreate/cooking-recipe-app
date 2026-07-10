@@ -4,26 +4,31 @@ import { put } from '@vercel/blob';
 import { query, queryOne } from '../db';
 import { config } from '../config';
 import { logger } from '../logger';
+import { pollinationsUrl, hashId } from '@/lib/tokens';
 
 /**
- * Recipe & step imagery, backed by Google's Gemini 2.5 Flash Image model
- * ("Nano Banana"). Because Gemini returns raw image bytes (not a hotlinkable
- * URL), each generation is uploaded to Vercel Blob and the resulting CDN URL is
- * cached in Postgres, keyed deterministically — so every image is generated at
- * most once and reused forever.
+ * Recipe & step imagery, resolved to a durable Vercel Blob URL and cached in
+ * Postgres so each image is generated at most once and then served from the CDN.
  *
- * Step images are generated image-to-image: each references the recipe's hero
- * dish photo so the whole method reads as ONE consistent kitchen — same surface,
- * cookware, palette and light — which is exactly what Nano Banana is built for.
+ * Providers, in order of preference:
+ *   1. Gemini 2.5 Flash Image ("Nano Banana") — when GEMINI_API_KEY is set.
+ *      Step images are generated image-to-image against the recipe's hero photo
+ *      so the whole method reads as one consistent kitchen.
+ *   2. Pollinations — fetched SERVER-SIDE (never from the visitor's browser,
+ *      which its per-IP anonymous limit now throttles) with retry, and cached.
  *
- * Graceful degradation: if GEMINI_API_KEY is unset, or generation/upload fails,
- * the caller falls back to the keyless Pollinations URL. Nothing here throws to
- * the request path.
+ * Everything is generated server-side and stored in Blob, so the client never
+ * talks to an image provider directly. Nothing here throws to the request path;
+ * on total failure the resolver returns null and the caller shows a placeholder.
  */
 
 const GEMINI_TIMEOUT_MS = 40_000;
+const POLLINATIONS_TIMEOUT_MS = 35_000;
 const MAX_REFERENCE_BYTES = 5 * 1024 * 1024;
 const EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+const DEFAULT_SIZE = { width: 600, height: 400 };
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Create the cache table lazily (once per warm instance) so the feature works
 // without a separate migration step on the user's push-to-Vercel deploy flow.
@@ -49,18 +54,22 @@ interface GeminiPart {
   inlineData?: { mimeType?: string; data?: string };
   inline_data?: { mime_type?: string; data?: string };
 }
-
 interface InlineImage {
   data: string; // base64
   mime: string;
 }
+interface Generated {
+  buffer: Buffer;
+  mime: string;
+}
+interface Size {
+  width: number;
+  height: number;
+}
 
-/**
- * Call Gemini and return the first image part as raw bytes, or null on failure.
- * An optional `reference` image is sent alongside the prompt for image-to-image
- * generation (visual consistency / editing).
- */
-async function generateWithGemini(prompt: string, reference?: InlineImage): Promise<{ buffer: Buffer; mime: string } | null> {
+// ─── Gemini (Nano Banana) ────────────────────────────────────────────────────
+
+async function generateWithGemini(prompt: string, reference?: InlineImage): Promise<Generated | null> {
   const key = config.geminiApiKey;
   if (!key) return null;
 
@@ -76,7 +85,7 @@ async function generateWithGemini(prompt: string, reference?: InlineImage): Prom
   return retry === 'config-rejected' ? null : retry;
 }
 
-type GeminiResult = { buffer: Buffer; mime: string } | null | 'config-rejected';
+type GeminiResult = Generated | null | 'config-rejected';
 
 async function callGemini(key: string, parts: unknown[], generationConfig?: Record<string, unknown>): Promise<GeminiResult> {
   const ctrl = new AbortController();
@@ -95,7 +104,6 @@ async function callGemini(key: string, parts: unknown[], generationConfig?: Reco
     );
     if (!res.ok) {
       const text = (await res.text()).slice(0, 300);
-      // 400 while sending the optional config → signal a retry without it.
       if (res.status === 400 && generationConfig) return 'config-rejected';
       logger.warn({ status: res.status, body: text }, 'Gemini image request failed');
       return null;
@@ -119,7 +127,45 @@ async function callGemini(key: string, parts: unknown[], generationConfig?: Reco
   }
 }
 
-/** Download a previously-generated Blob image and return it as base64 for reuse as a reference. */
+// ─── Pollinations (server-side, cached) ──────────────────────────────────────
+
+async function generateFromPollinations(prompt: string, size: Size, seed: number): Promise<Generated | null> {
+  let url = pollinationsUrl(prompt, size.width, size.height, seed);
+  if (config.pollinationsToken) url += `&token=${encodeURIComponent(config.pollinationsToken)}`;
+  if (config.pollinationsReferrer) url += `&referrer=${encodeURIComponent(config.pollinationsReferrer)}`;
+
+  // The anonymous tier allows very little concurrency per IP; retry 429s with backoff.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), POLLINATIONS_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, {
+        signal: ctrl.signal,
+        headers: config.pollinationsReferrer ? { Referer: `https://${config.pollinationsReferrer}` } : {},
+      });
+      if (res.status === 429) {
+        await sleep(1200 * (attempt + 1));
+        continue;
+      }
+      const ct = (res.headers.get('content-type') || '').split(';')[0]!.trim();
+      if (!res.ok || !ct.startsWith('image/')) {
+        logger.warn({ status: res.status, ct }, 'Pollinations image request failed');
+        return null;
+      }
+      const buffer = Buffer.from(await res.arrayBuffer());
+      return { buffer, mime: EXT[ct] ? ct : 'image/jpeg' };
+    } catch (err) {
+      logger.warn({ err: String(err) }, 'Pollinations image generation errored');
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return null;
+}
+
+// ─── Blob storage + cache ────────────────────────────────────────────────────
+
 async function fetchAsInline(url: string): Promise<InlineImage | null> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 15_000);
@@ -137,8 +183,7 @@ async function fetchAsInline(url: string): Promise<InlineImage | null> {
   }
 }
 
-/** Upload generated bytes to Blob and record the cache row; returns the canonical URL. */
-async function uploadAndCache(cacheKey: string, img: { buffer: Buffer; mime: string }): Promise<string> {
+async function uploadAndCache(cacheKey: string, img: Generated, provider: string): Promise<string> {
   const ext = EXT[img.mime] ?? 'png';
   const { url } = await put(`ember/gen/${crypto.randomBytes(16).toString('hex')}.${ext}`, img.buffer, {
     access: 'public',
@@ -146,53 +191,60 @@ async function uploadAndCache(cacheKey: string, img: { buffer: Buffer; mime: str
   });
   // If two requests raced, the first winner's URL stays; ours is a harmless orphan.
   await query(
-    `INSERT INTO generated_images (cache_key, url, provider) VALUES ($1, $2, 'gemini')
+    `INSERT INTO generated_images (cache_key, url, provider) VALUES ($1, $2, $3)
      ON CONFLICT (cache_key) DO NOTHING`,
-    [cacheKey, url],
+    [cacheKey, url, provider],
   );
   const row = await queryOne<{ url: string }>(`SELECT url FROM generated_images WHERE cache_key = $1`, [cacheKey]);
   return row?.url ?? url;
 }
 
+async function getCached(cacheKey: string): Promise<string | null> {
+  const hit = await queryOne<{ url: string }>(`SELECT url FROM generated_images WHERE cache_key = $1`, [cacheKey]);
+  return hit?.url ?? null;
+}
+
+// ─── Public resolvers ────────────────────────────────────────────────────────
+
 /** Return a cached Blob URL for `cacheKey` without generating anything. */
 export async function peekCachedImage(cacheKey: string): Promise<string | null> {
   try {
     await ensureTable();
-    const hit = await queryOne<{ url: string }>(`SELECT url FROM generated_images WHERE cache_key = $1`, [cacheKey]);
-    return hit?.url ?? null;
+    return await getCached(cacheKey);
   } catch {
     return null;
   }
 }
 
 /**
- * Resolve a durable text-to-image URL for `cacheKey` (used for the recipe hero):
- *   1. cache hit         → return stored Blob URL
- *   2. Gemini enabled    → generate → upload to Blob → cache → return URL
- *   3. otherwise / fail  → return null (caller uses the Pollinations fallback)
+ * Resolve a durable text-to-image URL for `cacheKey` (recipe hero): cache hit →
+ * Gemini → server-side Pollinations → null. Always returns a Blob URL or null.
  */
-export async function resolveGeneratedImage(cacheKey: string, prompt: string): Promise<string | null> {
+export async function resolveGeneratedImage(cacheKey: string, prompt: string, size: Size = DEFAULT_SIZE): Promise<string | null> {
   try {
     await ensureTable();
-    const hit = await queryOne<{ url: string }>(`SELECT url FROM generated_images WHERE cache_key = $1`, [cacheKey]);
-    if (hit) return hit.url;
-    if (!config.geminiEnabled) return null;
+    const hit = await getCached(cacheKey);
+    if (hit) return hit;
 
-    const img = await generateWithGemini(prompt);
+    let img: Generated | null = null;
+    let provider = 'gemini';
+    if (config.geminiEnabled) img = await generateWithGemini(prompt);
+    if (!img) {
+      img = await generateFromPollinations(prompt, size, hashId(cacheKey));
+      provider = 'pollinations';
+    }
     if (!img) return null;
-    return await uploadAndCache(cacheKey, img);
+    return await uploadAndCache(cacheKey, img, provider);
   } catch (err) {
-    logger.warn({ err: String(err), cacheKey }, 'resolveGeneratedImage failed — falling back');
+    logger.warn({ err: String(err), cacheKey }, 'resolveGeneratedImage failed');
     return null;
   }
 }
 
 /**
  * Resolve a step image, generated image-to-image against the recipe's hero
- * photo so every step shares the same kitchen for a consistent visual series.
- * The hero is generated first (and cached) if it doesn't yet exist. Falls back
- * to plain text-to-image if the anchor can't be produced, and to null (→
- * Pollinations) on any failure.
+ * photo (via Gemini) so the series stays visually consistent. Falls back to
+ * server-side Pollinations, then null.
  */
 export async function resolveStepImage(params: {
   cacheKey: string;
@@ -202,24 +254,29 @@ export async function resolveStepImage(params: {
 }): Promise<string | null> {
   try {
     await ensureTable();
-    const hit = await queryOne<{ url: string }>(`SELECT url FROM generated_images WHERE cache_key = $1`, [params.cacheKey]);
-    if (hit) return hit.url;
-    if (!config.geminiEnabled) return null;
+    const hit = await getCached(params.cacheKey);
+    if (hit) return hit;
 
-    // Lock the visual style to the recipe's hero dish photo.
-    let reference: InlineImage | null = null;
-    const anchorUrl = await resolveGeneratedImage(params.anchorCacheKey, params.anchorPrompt);
-    if (anchorUrl) reference = await fetchAsInline(anchorUrl);
-
-    const prompt = reference
-      ? `${params.stepPrompt}\n\nUse the attached reference photo as the fixed scene: keep the EXACT same kitchen, countertop surface, cookware, dishware, color palette and lighting so this reads as one step in a consistent step-by-step series. Only the food's state and the action shown should change to depict this step.`
-      : params.stepPrompt;
-
-    const img = await generateWithGemini(prompt, reference ?? undefined);
+    let img: Generated | null = null;
+    let provider = 'gemini';
+    if (config.geminiEnabled) {
+      // Lock the visual style to the recipe's hero dish photo.
+      let reference: InlineImage | null = null;
+      const anchorUrl = await resolveGeneratedImage(params.anchorCacheKey, params.anchorPrompt);
+      if (anchorUrl) reference = await fetchAsInline(anchorUrl);
+      const prompt = reference
+        ? `${params.stepPrompt}\n\nUse the attached reference photo as the fixed scene: keep the EXACT same kitchen, countertop surface, cookware, dishware, color palette and lighting so this reads as one step in a consistent step-by-step series. Only the food's state and the action shown should change to depict this step.`
+        : params.stepPrompt;
+      img = await generateWithGemini(prompt, reference ?? undefined);
+    }
+    if (!img) {
+      img = await generateFromPollinations(params.stepPrompt, { width: 512, height: 340 }, hashId(params.cacheKey));
+      provider = 'pollinations';
+    }
     if (!img) return null;
-    return await uploadAndCache(params.cacheKey, img);
+    return await uploadAndCache(params.cacheKey, img, provider);
   } catch (err) {
-    logger.warn({ err: String(err), cacheKey: params.cacheKey }, 'resolveStepImage failed — falling back');
+    logger.warn({ err: String(err), cacheKey: params.cacheKey }, 'resolveStepImage failed');
     return null;
   }
 }

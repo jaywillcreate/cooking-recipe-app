@@ -24,10 +24,11 @@ const schema = z.object({
 });
 
 /**
- * Resolve the best available image URL for a recipe's hero dish or a single
- * method step. Prefers a cached / freshly-generated Gemini "Nano Banana" image
- * (durable Blob URL); always returns a usable `url`, falling back to the
- * keyless Pollinations generator when Gemini is unconfigured, capped, or errors.
+ * Resolve a durable image URL for a recipe's hero dish or a single method step.
+ * Always returns a usable `url` pointing at a cached Vercel Blob image
+ * (generated via Gemini "Nano Banana" or server-side Pollinations); on total
+ * failure it points at the same-origin proxy / step fallback so the client
+ * never has to call an image provider directly.
  */
 export const POST = route(async (req: NextRequest) => {
   const u = requireUser(req);
@@ -46,24 +47,26 @@ export const POST = route(async (req: NextRequest) => {
   const anchorCacheKey = `recipe:${recipeId}:${CACHE_VERSION}`;
 
   const prompt = isStep ? stepImagePrompt(recipe.cuisine, stepText!, recipe.title) : anchorPrompt;
-  const fallback = isStep
-    ? pollinationsUrl(prompt, 512, 340, hashId(`${recipeId}:${stepIndex}`))
-    : pollinationsUrl(prompt, 600, 400, hashId(recipeId));
+  // Last-resort URLs if generation yields nothing: the same-origin proxy for the
+  // hero, and a direct Pollinations URL for a step (which simply hides on error).
+  const lastResort = isStep ? pollinationsUrl(prompt, 512, 340, hashId(`${recipeId}:${stepIndex}`)) : `/api/img/recipe/${recipeId}`;
 
   // A user's uploaded dish photo always wins for the hero.
   if (!isStep && recipe.photo_url) return json({ url: recipe.photo_url, provider: 'user' });
 
   const cacheKey = isStep ? `step:${recipeId}:${stepIndex}:${CACHE_VERSION}` : anchorCacheKey;
 
-  // Serve cache hits (and the Pollinations path) without touching the spend cap.
+  // Serve cache hits without touching the spend cap.
   const cached = await peekCachedImage(cacheKey);
   if (cached) return json({ url: cached, provider: 'gemini' });
-  if (!config.geminiEnabled) return json({ url: fallback, provider: 'pollinations' });
 
-  // Cache miss + Gemini enabled → this call may spend money; enforce the cap.
-  await assertRateLimit(`img:day:${u.id}`, config.geminiImageDailyLimit, 86_400, 'Daily image-generation limit reached.');
+  // Cache miss → we'll generate. Charge the daily cap only when Gemini (the paid
+  // path) will run; Pollinations is free and only guarded by the burst limit.
+  if (config.geminiEnabled) {
+    await assertRateLimit(`img:day:${u.id}`, config.geminiImageDailyLimit, 86_400, 'Daily image-generation limit reached.');
+  }
   const url = isStep
     ? await resolveStepImage({ cacheKey, stepPrompt: prompt, anchorCacheKey, anchorPrompt })
-    : await resolveGeneratedImage(cacheKey, prompt);
-  return json(url ? { url, provider: 'gemini' } : { url: fallback, provider: 'pollinations' });
+    : await resolveGeneratedImage(cacheKey, prompt, { width: 600, height: 400 });
+  return json(url ? { url, provider: 'gemini' } : { url: lastResort, provider: 'pollinations' });
 });
