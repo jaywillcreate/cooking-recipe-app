@@ -13,7 +13,7 @@ const g = globalThis as unknown as { _emberPool?: Pool };
 export function getPool(): Pool {
   if (!g._emberPool) {
     g._emberPool = new Pool({
-      connectionString: config.databaseUrl,
+      connectionString: stripSslMode(config.databaseUrl),
       ssl: config.pgSsl ? { rejectUnauthorized: false } : undefined,
       max: 5,
       idleTimeoutMillis: 10_000,
@@ -21,6 +21,25 @@ export function getPool(): Pool {
     });
   }
   return g._emberPool;
+}
+
+/**
+ * Drop `sslmode`/`ssl` from the DSN. We configure TLS explicitly via the `ssl`
+ * option above (encrypted, server cert not verified — equivalent to libpq
+ * "require"), so the DSN's sslmode is redundant and only triggers a
+ * pg-connection-string deprecation warning about how it will reinterpret
+ * 'require'/'prefer'/'verify-ca' in pg v9. Setting `ssl` explicitly means that
+ * future change won't affect us.
+ */
+export function stripSslMode(dsn: string): string {
+  try {
+    const u = new URL(dsn);
+    u.searchParams.delete('sslmode');
+    u.searchParams.delete('ssl');
+    return u.toString();
+  } catch {
+    return dsn; // not a parseable URL — leave it untouched
+  }
 }
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
