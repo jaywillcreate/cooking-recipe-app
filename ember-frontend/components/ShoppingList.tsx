@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { storesApi, shoppingApi, ApiError, type StoreResult, type Store } from '@/lib/api';
 import { C, mono } from '@/lib/tokens';
+import { estimateBasketBase, estimateBasketAt } from '@/lib/basket';
 import { Spinner } from './Spinner';
 import { IconCart, IconStore, IconCheck, IconCopy, IconDownload, IconMail, IconPin, IconSort, IconExternal } from './icons';
 
@@ -62,13 +63,14 @@ export function ShoppingList({ title, items }: { title: string; items: string[] 
   const gathered = checked.size;
   const pct = items.length ? Math.round((gathered / items.length) * 100) : 0;
 
+  const basketBase = useMemo(() => estimateBasketBase(items), [items]);
   const sortedStores = useMemo<Store[]>(() => {
     if (!result) return [];
     const list = [...result.stores];
-    if (sortBy === 'price') list.sort((a, b) => a.priceTier - b.priceTier || a.distanceMi - b.distanceMi);
+    if (sortBy === 'price') list.sort((a, b) => estimateBasketAt(basketBase, a.priceTier) - estimateBasketAt(basketBase, b.priceTier) || a.distanceMi - b.distanceMi);
     else list.sort((a, b) => a.distanceMi - b.distanceMi);
     return list;
-  }, [result, sortBy]);
+  }, [result, sortBy, basketBase]);
 
   async function copy() {
     try {
@@ -237,9 +239,9 @@ export function ShoppingList({ title, items }: { title: string; items: string[] 
                           </div>
                           {s.address && <div style={{ fontSize: 11.5, color: C.muted55, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.address}</div>}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: C.muted65 }}>{s.distanceMi} mi</span>
-                          <IconExternal size={14} color={C.muted55} />
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flex: 'none' }}>
+                          <span style={{ fontSize: 14, fontWeight: 800, color: TIER_COLOR[s.priceTier] }}>~${estimateBasketAt(basketBase, s.priceTier)}</span>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: C.muted55, display: 'inline-flex', alignItems: 'center', gap: 4 }}>{s.distanceMi} mi <IconExternal size={12} color={C.muted55} /></span>
                         </div>
                       </a>
                     ))}
@@ -249,7 +251,7 @@ export function ShoppingList({ title, items }: { title: string; items: string[] 
                 )}
 
                 <div style={{ fontSize: 11, color: C.muted55, marginTop: 10, lineHeight: 1.5 }}>
-                  <span style={{ fontWeight: 700 }}>$/$$/$$$</span> is an estimated price level based on the store chain, not live item prices.
+                  <span style={{ fontWeight: 700 }}>~${estimateBasketAt(basketBase, 1)}–${estimateBasketAt(basketBase, 3)}</span> is a rough estimate for these {items.length} items, adjusted by each store&apos;s price level ($/$$/$$$) — not live item prices.
                 </div>
                 <a href={result.mapsUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 12.5, fontWeight: 700, color: C.rust }}>
                   Open all in Maps <IconExternal size={13} />
