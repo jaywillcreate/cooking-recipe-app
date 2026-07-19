@@ -15,8 +15,11 @@ import type { NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 45; // Gemini generation can take a while
 
-// Bump the version suffix to invalidate all cached images after a prompt change.
+// Bump the version suffix to invalidate cached images after a prompt change.
+// Steps version is separate so improving step prompts doesn't force every hero
+// image to regenerate (and steps still anchor to the v2 hero).
 const CACHE_VERSION = 'v2';
+const STEP_CACHE_VERSION = 'v3';
 
 const schema = z.object({
   recipeId: z.string().uuid(),
@@ -54,7 +57,7 @@ export const POST = route(async (req: NextRequest) => {
   // A user's uploaded dish photo always wins for the hero.
   if (!isStep && recipe.photo_url) return json({ url: recipe.photo_url, provider: 'user' });
 
-  const cacheKey = isStep ? `step:${recipeId}:${stepIndex}:${CACHE_VERSION}` : anchorCacheKey;
+  const cacheKey = isStep ? `step:${recipeId}:${stepIndex}:${STEP_CACHE_VERSION}` : anchorCacheKey;
 
   // Serve cache hits without touching the spend cap.
   const cached = await peekCachedImage(cacheKey);

@@ -321,7 +321,7 @@ export async function resolveStepImage(params: {
       const anchorUrl = await resolveGeneratedImage(params.anchorCacheKey, params.anchorPrompt);
       if (anchorUrl) reference = await fetchAsInline(anchorUrl);
       const prompt = reference
-        ? `${params.stepPrompt}\n\nUse the attached reference photo as the fixed scene: keep the EXACT same kitchen, countertop surface, cookware, dishware, color palette and lighting so this reads as one step in a consistent step-by-step series. Only the food's state and the action shown should change to depict this step.`
+        ? `${params.stepPrompt}\n\nUse the attached reference photo ONLY to match visual style — the same kitchen, countertop material, cookware finish, color palette and lighting — so this reads as one entry in a consistent step-by-step series. Do NOT copy the reference's plated-dish framing: compose a NEW, correct scene for THIS step (for a cooking step that means a pan or pot on the lit stovetop, for a prep step a bowl or cutting board). Keep every cooking-realism rule above.`
         : params.stepPrompt;
       img = await generateWithGemini(prompt, reference ?? undefined);
     }
