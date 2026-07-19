@@ -340,6 +340,47 @@ export function buildCorrection(tags: string[], note?: string | null, prior?: st
   return [prior, ...fixes].filter(Boolean).join('; ').slice(0, 700);
 }
 
+// An issue must be reported this many times (site-wide) before its fix is folded
+// into EVERY step generation; we apply at most this many of the top issues.
+const GLOBAL_MIN_COUNT = parseInt(process.env.STEP_GLOBAL_MIN_COUNT ?? '4', 10);
+const GLOBAL_MAX_ISSUES = 2;
+const GLOBAL_TTL_MS = 5 * 60 * 1000;
+let globalCorrCache: { at: number; value: { text: string; sig: string; tags: string[] } } | null = null;
+
+/**
+ * The site-wide corrective guidance derived from recurring 👎 feedback: the fix
+ * phrases for the most-reported issues that cross the threshold. `sig` is a
+ * stable signature folded into step cache keys, so when the dominant issue
+ * changes, step images regenerate once with the new fix. Cached in-process (5m).
+ */
+export async function getGlobalStepCorrection(): Promise<{ text: string; sig: string; tags: string[] }> {
+  const now = Date.now();
+  if (globalCorrCache && now - globalCorrCache.at < GLOBAL_TTL_MS) return globalCorrCache.value;
+
+  let value = { text: '', sig: '', tags: [] as string[] };
+  try {
+    await ensureTable();
+    const rows = await query<{ tag: string; n: number }>(
+      `SELECT unnest(tags) AS tag, count(*)::int AS n FROM image_feedback
+       WHERE vote = -1 GROUP BY 1 HAVING count(*) >= $1 ORDER BY n DESC, tag ASC LIMIT $2`,
+      [GLOBAL_MIN_COUNT, GLOBAL_MAX_ISSUES],
+    );
+    const tags = rows.map((r) => r.tag);
+    const fixes = tags.map((t) => STEP_IMAGE_ISSUES.find((i) => i.key === t)?.fix).filter((f): f is string => !!f);
+    if (fixes.length) {
+      value = {
+        text: `Recurring quality rules from user feedback (always obey): ${fixes.join('; ')}.`,
+        sig: [...tags].sort().join('-').replace(/[^a-z0-9-]/gi, '').slice(0, 40),
+        tags,
+      };
+    }
+  } catch {
+    /* image_feedback not created yet */
+  }
+  globalCorrCache = { at: now, value };
+  return value;
+}
+
 /** Return a cached Blob URL for `cacheKey` without generating anything. */
 export async function peekCachedImage(cacheKey: string): Promise<string | null> {
   try {

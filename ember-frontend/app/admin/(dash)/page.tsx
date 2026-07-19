@@ -1,6 +1,6 @@
 import { query, queryOne } from '@/lib/server/db';
 import { config } from '@/lib/server/config';
-import { testGeminiImage, testBlobWrite, blobToken } from '@/lib/server/services/images';
+import { testGeminiImage, testBlobWrite, blobToken, getGlobalStepCorrection } from '@/lib/server/services/images';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +38,7 @@ export default async function Overview({ searchParams }: { searchParams: { diag?
   // Visual-guide image feedback (table is created lazily on first image request).
   let imgVotes = { up: 0, down: 0 };
   let imgIssues: { tag: string; n: number }[] = [];
+  let activeGlobal: string[] = [];
   try {
     imgVotes =
       (await queryOne<{ up: number; down: number }>(
@@ -46,6 +47,7 @@ export default async function Overview({ searchParams }: { searchParams: { diag?
     imgIssues = await query<{ tag: string; n: number }>(
       `SELECT unnest(tags) AS tag, count(*)::int AS n FROM image_feedback WHERE vote=-1 GROUP BY 1 ORDER BY n DESC LIMIT 6`,
     );
+    activeGlobal = (await getGlobalStepCorrection()).tags;
   } catch {
     /* image_feedback not created yet */
   }
@@ -128,6 +130,11 @@ export default async function Overview({ searchParams }: { searchParams: { diag?
                 {imgIssues.length === 0 && <tr><td colSpan={2} className="admin-muted">No tagged issues.</td></tr>}
               </tbody>
             </table>
+            <p style={{ fontSize: 12, marginTop: 10, color: activeGlobal.length ? 'var(--green)' : undefined }} className={activeGlobal.length ? undefined : 'admin-muted'}>
+              {activeGlobal.length
+                ? `✓ Auto-applied to every step image: ${activeGlobal.join(', ')}`
+                : 'No issue is common enough yet to auto-apply site-wide.'}
+            </p>
           </>
         )}
       </div>

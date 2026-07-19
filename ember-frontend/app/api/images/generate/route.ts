@@ -10,6 +10,7 @@ import {
   bumpImageRevision,
   recordImageFeedback,
   buildCorrection,
+  getGlobalStepCorrection,
 } from '@/lib/server/services/images';
 import { config } from '@/lib/server/config';
 import { recipeImagePrompt, stepImagePrompt, pollinationsUrl, hashId } from '@/lib/tokens';
@@ -74,14 +75,21 @@ export const POST = route(async (req: NextRequest) => {
 
   const baseKey = `step:${recipeId}:${stepIndex}:${STEP_CACHE_VERSION}`;
   const basePrompt = stepImagePrompt(recipe.cuisine, stepText, recipe.title);
+
+  // Fold recurring site-wide feedback into every step generation, and into the
+  // cache key so a shift in the dominant issue regenerates images with the fix.
+  const global = await getGlobalStepCorrection();
+  const groundedBase = global.text ? `${basePrompt} ${global.text}` : basePrompt;
+  const sigPart = global.sig ? `:g${global.sig}` : '';
+
   let { rev, correction } = await getImageRevision(baseKey);
 
   if (regenerate) {
     // Serve the current best once the revision cap is hit, rather than spend more.
     if (rev >= MAX_REVISIONS) {
-      const eff = rev > 0 ? `${baseKey}#r${rev}` : baseKey;
+      const eff = `${baseKey}${sigPart}${rev > 0 ? `#r${rev}` : ''}`;
       const cur = await peekCachedImage(eff);
-      return json({ url: cur ?? pollinationsUrl(basePrompt, 512, 340, hashId(eff)), provider: 'gemini', rev, capped: true });
+      return json({ url: cur ?? pollinationsUrl(groundedBase, 512, 340, hashId(eff)), provider: 'gemini', rev, capped: true });
     }
     correction = buildCorrection(feedback?.tags ?? [], feedback?.note, correction);
     rev += 1;
@@ -89,11 +97,11 @@ export const POST = route(async (req: NextRequest) => {
     await recordImageFeedback({ baseKey, recipeId, stepIndex, userId: u.id, vote: -1, tags: feedback?.tags ?? [], note: feedback?.note ?? null });
   }
 
-  const effectiveKey = rev > 0 ? `${baseKey}#r${rev}` : baseKey;
+  const effectiveKey = `${baseKey}${sigPart}${rev > 0 ? `#r${rev}` : ''}`;
   const stepPrompt =
     rev > 0 && correction
-      ? `${basePrompt}\n\nCORRECTIONS FROM USER FEEDBACK — fix these specific problems and keep everything else consistent: ${correction}.`
-      : basePrompt;
+      ? `${groundedBase}\n\nCORRECTIONS FROM USER FEEDBACK — fix these specific problems and keep everything else consistent: ${correction}.`
+      : groundedBase;
 
   // Normal load: serve the cache. Regeneration always generates the new revision.
   if (!regenerate) {
@@ -108,6 +116,6 @@ export const POST = route(async (req: NextRequest) => {
   return json(
     url
       ? { url, provider: 'gemini', rev }
-      : { url: pollinationsUrl(basePrompt, 512, 340, hashId(effectiveKey)), provider: 'pollinations', rev },
+      : { url: pollinationsUrl(groundedBase, 512, 340, hashId(effectiveKey)), provider: 'pollinations', rev },
   );
 });
