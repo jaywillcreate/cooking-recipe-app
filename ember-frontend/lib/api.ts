@@ -163,12 +163,24 @@ export const photoApi = {
 };
 
 export type ImageProvider = 'gemini' | 'pollinations' | 'user';
+export interface StepFeedback {
+  tags?: string[];
+  note?: string;
+}
 export const imagesApi = {
   /** Resolve a recipe hero (no stepIndex) or method-step image. */
   generate: (recipeId: string, stepIndex?: number) =>
-    api<{ url: string; provider: ImageProvider }>('/api/images/generate', {
+    api<{ url: string; provider: ImageProvider; rev?: number }>('/api/images/generate', {
       body: stepIndex === undefined ? { recipeId } : { recipeId, stepIndex },
     }),
+  /** Regenerate a step image applying the user's feedback; returns the improved image. */
+  regenerateStep: (recipeId: string, stepIndex: number, feedback: StepFeedback) =>
+    api<{ url: string; provider: ImageProvider; rev?: number; capped?: boolean }>('/api/images/generate', {
+      body: { recipeId, stepIndex, regenerate: true, feedback },
+    }),
+  /** Record 👍/👎 feedback (with optional issue tags) on a step image. */
+  feedback: (recipeId: string, stepIndex: number, vote: 1 | -1, tags?: string[], note?: string) =>
+    api<{ ok: boolean }>('/api/images/feedback', { body: { recipeId, stepIndex, vote, tags, note } }),
 };
 
 export { BASE as API_BASE };

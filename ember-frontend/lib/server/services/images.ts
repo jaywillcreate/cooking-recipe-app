@@ -4,7 +4,7 @@ import { put } from '@vercel/blob';
 import { query, queryOne } from '../db';
 import { config } from '../config';
 import { logger } from '../logger';
-import { pollinationsUrl, hashId } from '@/lib/tokens';
+import { pollinationsUrl, hashId, STEP_IMAGE_ISSUES } from '@/lib/tokens';
 
 /**
  * Recipe & step imagery, resolved to a durable Vercel Blob URL and cached in
@@ -47,14 +47,40 @@ export function blobToken(): string | undefined {
 let ensured: Promise<void> | null = null;
 function ensureTable(): Promise<void> {
   if (!ensured) {
-    ensured = query(
-      `CREATE TABLE IF NOT EXISTS generated_images (
-         cache_key  TEXT PRIMARY KEY,
-         url        TEXT NOT NULL,
-         provider   TEXT NOT NULL,
-         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-       )`,
-    ).then(() => undefined).catch((err) => {
+    // One statement per call — our query() helper passes a params array, which
+    // makes pg use the extended protocol (no multi-statement support).
+    ensured = (async () => {
+      await query(
+        `CREATE TABLE IF NOT EXISTS generated_images (
+           cache_key  TEXT PRIMARY KEY,
+           url        TEXT NOT NULL,
+           provider   TEXT NOT NULL,
+           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+         )`,
+      );
+      await query(
+        `CREATE TABLE IF NOT EXISTS image_revisions (
+           base_key   TEXT PRIMARY KEY,
+           rev        INT NOT NULL DEFAULT 0,
+           correction TEXT,
+           updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+         )`,
+      );
+      await query(
+        `CREATE TABLE IF NOT EXISTS image_feedback (
+           id         BIGSERIAL PRIMARY KEY,
+           base_key   TEXT NOT NULL,
+           recipe_id  UUID,
+           step_index INT,
+           user_id    UUID,
+           vote       SMALLINT NOT NULL,
+           tags       TEXT[] NOT NULL DEFAULT '{}',
+           note       TEXT,
+           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+         )`,
+      );
+      await query(`CREATE INDEX IF NOT EXISTS idx_image_feedback_base ON image_feedback(base_key)`);
+    })().catch((err) => {
       ensured = null; // allow a retry on the next call
       throw err;
     });
@@ -260,6 +286,58 @@ export async function testBlobWrite(): Promise<{ ok: boolean; detail: string }> 
       : '';
     return { ok: false, detail: msg.slice(0, 200) + hint };
   }
+}
+
+// ─── Step-image feedback & revisions ─────────────────────────────────────────
+
+/** The current revision + accumulated correction for a step image's base key. */
+export async function getImageRevision(baseKey: string): Promise<{ rev: number; correction: string | null }> {
+  await ensureTable();
+  const row = await queryOne<{ rev: number; correction: string | null }>(
+    `SELECT rev, correction FROM image_revisions WHERE base_key = $1`,
+    [baseKey],
+  );
+  return { rev: row?.rev ?? 0, correction: row?.correction ?? null };
+}
+
+/** Persist the new revision number + correction for a step image. */
+export async function bumpImageRevision(baseKey: string, rev: number, correction: string | null): Promise<void> {
+  await ensureTable();
+  await query(
+    `INSERT INTO image_revisions (base_key, rev, correction, updated_at) VALUES ($1, $2, $3, now())
+     ON CONFLICT (base_key) DO UPDATE SET rev = EXCLUDED.rev, correction = EXCLUDED.correction, updated_at = now()`,
+    [baseKey, rev, correction],
+  );
+}
+
+/** Record a piece of user feedback (👍 or 👎 with issue tags / note). */
+export async function recordImageFeedback(p: {
+  baseKey: string;
+  recipeId: string;
+  stepIndex: number;
+  userId: string;
+  vote: 1 | -1;
+  tags?: string[];
+  note?: string | null;
+}): Promise<void> {
+  await ensureTable();
+  await query(
+    `INSERT INTO image_feedback (base_key, recipe_id, step_index, user_id, vote, tags, note)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [p.baseKey, p.recipeId, p.stepIndex, p.userId, p.vote, p.tags ?? [], p.note ?? null],
+  );
+}
+
+/**
+ * Turn issue tags + a free-text note into a corrective instruction, merged with
+ * any prior correction so fixes accumulate across successive regenerations.
+ */
+export function buildCorrection(tags: string[], note?: string | null, prior?: string | null): string {
+  const fixes = tags
+    .map((t) => STEP_IMAGE_ISSUES.find((i) => i.key === t)?.fix)
+    .filter((f): f is string => !!f);
+  if (note && note.trim()) fixes.push(note.trim().slice(0, 300));
+  return [prior, ...fixes].filter(Boolean).join('; ').slice(0, 700);
 }
 
 /** Return a cached Blob URL for `cacheKey` without generating anything. */

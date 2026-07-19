@@ -2,14 +2,17 @@ import { z } from 'zod';
 import { route, requireUser, readBody, json, notFound } from '@/lib/server/http';
 import { assertRateLimit } from '@/lib/server/services/rateLimit';
 import { getVisibleRecipe } from '@/lib/server/services/recipes';
-import { peekCachedImage, resolveGeneratedImage, resolveStepImage } from '@/lib/server/services/images';
-import { config } from '@/lib/server/config';
 import {
-  recipeImagePrompt,
-  stepImagePrompt,
-  pollinationsUrl,
-  hashId,
-} from '@/lib/tokens';
+  peekCachedImage,
+  resolveGeneratedImage,
+  resolveStepImage,
+  getImageRevision,
+  bumpImageRevision,
+  recordImageFeedback,
+  buildCorrection,
+} from '@/lib/server/services/images';
+import { config } from '@/lib/server/config';
+import { recipeImagePrompt, stepImagePrompt, pollinationsUrl, hashId } from '@/lib/tokens';
 import type { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -20,56 +23,91 @@ export const maxDuration = 45; // Gemini generation can take a while
 // image to regenerate (and steps still anchor to the v2 hero).
 const CACHE_VERSION = 'v2';
 const STEP_CACHE_VERSION = 'v3';
+// Cap feedback-driven regenerations per image so spend stays bounded.
+const MAX_REVISIONS = 4;
 
 const schema = z.object({
   recipeId: z.string().uuid(),
   stepIndex: z.number().int().min(0).max(49).optional(),
+  // Feedback-driven regeneration of a step image.
+  regenerate: z.boolean().optional(),
+  feedback: z
+    .object({
+      tags: z.array(z.string().max(40)).max(8).optional(),
+      note: z.string().max(500).optional(),
+    })
+    .optional(),
 });
 
 /**
  * Resolve a durable image URL for a recipe's hero dish or a single method step.
- * Always returns a usable `url` pointing at a cached Vercel Blob image
- * (generated via Gemini "Nano Banana" or server-side Pollinations); on total
- * failure it points at the same-origin proxy / step fallback so the client
- * never has to call an image provider directly.
+ * For steps, `regenerate` produces an improved image from user feedback: the
+ * correction is stored and applied to a new revision, so the fix persists.
+ * Always returns a usable `url` pointing at a cached Vercel Blob image.
  */
 export const POST = route(async (req: NextRequest) => {
   const u = requireUser(req);
   await assertRateLimit(`img:burst:${u.id}`, 90, 60, 'Too many image requests — try again shortly.');
 
-  const { recipeId, stepIndex } = await readBody(req, schema);
+  const { recipeId, stepIndex, regenerate, feedback } = await readBody(req, schema);
   const recipe = await getVisibleRecipe(u.id, recipeId);
   if (!recipe) throw notFound('Recipe not found');
 
-  const isStep = stepIndex !== undefined;
-  const stepText = isStep ? recipe.steps?.[stepIndex] : undefined;
-  if (isStep && !stepText) throw notFound('Step not found');
-
-  // The hero anchor prompt is shared so step images can lock to the same scene.
   const anchorPrompt = recipeImagePrompt(recipe.title, recipe.cuisine);
   const anchorCacheKey = `recipe:${recipeId}:${CACHE_VERSION}`;
 
-  const prompt = isStep ? stepImagePrompt(recipe.cuisine, stepText!, recipe.title) : anchorPrompt;
-  // Last-resort URLs if generation yields nothing: the same-origin proxy for the
-  // hero, and a direct Pollinations URL for a step (which simply hides on error).
-  const lastResort = isStep ? pollinationsUrl(prompt, 512, 340, hashId(`${recipeId}:${stepIndex}`)) : `/api/img/recipe/${recipeId}`;
+  // ── Recipe hero ────────────────────────────────────────────────────────────
+  if (stepIndex === undefined) {
+    if (recipe.photo_url) return json({ url: recipe.photo_url, provider: 'user' });
+    const cached = await peekCachedImage(anchorCacheKey);
+    if (cached) return json({ url: cached, provider: 'gemini' });
+    if (config.geminiEnabled) {
+      await assertRateLimit(`img:day:${u.id}`, config.geminiImageDailyLimit, 86_400, 'Daily image-generation limit reached.');
+    }
+    const url = await resolveGeneratedImage(anchorCacheKey, anchorPrompt, { width: 600, height: 400 });
+    return json(url ? { url, provider: 'gemini' } : { url: `/api/img/recipe/${recipeId}`, provider: 'pollinations' });
+  }
 
-  // A user's uploaded dish photo always wins for the hero.
-  if (!isStep && recipe.photo_url) return json({ url: recipe.photo_url, provider: 'user' });
+  // ── Method step (supports feedback-driven regeneration) ─────────────────────
+  const stepText = recipe.steps?.[stepIndex];
+  if (!stepText) throw notFound('Step not found');
 
-  const cacheKey = isStep ? `step:${recipeId}:${stepIndex}:${STEP_CACHE_VERSION}` : anchorCacheKey;
+  const baseKey = `step:${recipeId}:${stepIndex}:${STEP_CACHE_VERSION}`;
+  const basePrompt = stepImagePrompt(recipe.cuisine, stepText, recipe.title);
+  let { rev, correction } = await getImageRevision(baseKey);
 
-  // Serve cache hits without touching the spend cap.
-  const cached = await peekCachedImage(cacheKey);
-  if (cached) return json({ url: cached, provider: 'gemini' });
+  if (regenerate) {
+    // Serve the current best once the revision cap is hit, rather than spend more.
+    if (rev >= MAX_REVISIONS) {
+      const eff = rev > 0 ? `${baseKey}#r${rev}` : baseKey;
+      const cur = await peekCachedImage(eff);
+      return json({ url: cur ?? pollinationsUrl(basePrompt, 512, 340, hashId(eff)), provider: 'gemini', rev, capped: true });
+    }
+    correction = buildCorrection(feedback?.tags ?? [], feedback?.note, correction);
+    rev += 1;
+    await bumpImageRevision(baseKey, rev, correction);
+    await recordImageFeedback({ baseKey, recipeId, stepIndex, userId: u.id, vote: -1, tags: feedback?.tags ?? [], note: feedback?.note ?? null });
+  }
 
-  // Cache miss → we'll generate. Charge the daily cap only when Gemini (the paid
-  // path) will run; Pollinations is free and only guarded by the burst limit.
+  const effectiveKey = rev > 0 ? `${baseKey}#r${rev}` : baseKey;
+  const stepPrompt =
+    rev > 0 && correction
+      ? `${basePrompt}\n\nCORRECTIONS FROM USER FEEDBACK — fix these specific problems and keep everything else consistent: ${correction}.`
+      : basePrompt;
+
+  // Normal load: serve the cache. Regeneration always generates the new revision.
+  if (!regenerate) {
+    const cached = await peekCachedImage(effectiveKey);
+    if (cached) return json({ url: cached, provider: 'gemini', rev });
+  }
+
   if (config.geminiEnabled) {
     await assertRateLimit(`img:day:${u.id}`, config.geminiImageDailyLimit, 86_400, 'Daily image-generation limit reached.');
   }
-  const url = isStep
-    ? await resolveStepImage({ cacheKey, stepPrompt: prompt, anchorCacheKey, anchorPrompt })
-    : await resolveGeneratedImage(cacheKey, prompt, { width: 600, height: 400 });
-  return json(url ? { url, provider: 'gemini' } : { url: lastResort, provider: 'pollinations' });
+  const url = await resolveStepImage({ cacheKey: effectiveKey, stepPrompt, anchorCacheKey, anchorPrompt });
+  return json(
+    url
+      ? { url, provider: 'gemini', rev }
+      : { url: pollinationsUrl(basePrompt, 512, 340, hashId(effectiveKey)), provider: 'pollinations', rev },
+  );
 });

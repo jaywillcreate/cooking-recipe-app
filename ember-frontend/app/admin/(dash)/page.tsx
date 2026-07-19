@@ -35,6 +35,21 @@ export default async function Overview({ searchParams }: { searchParams: { diag?
   const t = totals!;
   const max = Math.max(1, ...gen7.map((g) => g.n));
 
+  // Visual-guide image feedback (table is created lazily on first image request).
+  let imgVotes = { up: 0, down: 0 };
+  let imgIssues: { tag: string; n: number }[] = [];
+  try {
+    imgVotes =
+      (await queryOne<{ up: number; down: number }>(
+        `SELECT COALESCE(sum((vote=1)::int),0)::int AS up, COALESCE(sum((vote=-1)::int),0)::int AS down FROM image_feedback`,
+      )) ?? imgVotes;
+    imgIssues = await query<{ tag: string; n: number }>(
+      `SELECT unnest(tags) AS tag, count(*)::int AS n FROM image_feedback WHERE vote=-1 GROUP BY 1 ORDER BY n DESC LIMIT 6`,
+    );
+  } catch {
+    /* image_feedback not created yet */
+  }
+
   return (
     <>
       <h1>Overview</h1>
@@ -91,6 +106,29 @@ export default async function Overview({ searchParams }: { searchParams: { diag?
           <p style={{ marginTop: 12 }}>
             <a className="btn ghost sm" href="/admin?diag=1">Run live test (generates 1 image)</a>
           </p>
+        )}
+      </div>
+
+      <div className="admin-card">
+        <h2>Visual guide feedback</h2>
+        {imgVotes.up === 0 && imgVotes.down === 0 ? (
+          <p className="admin-muted">No step-image feedback yet.</p>
+        ) : (
+          <>
+            <div className="admin-grid admin-kpis" style={{ marginBottom: 8 }}>
+              <div className="admin-kpi"><small>👍 Looks right</small><b style={{ color: 'var(--green)' }}>{imgVotes.up}</b></div>
+              <div className="admin-kpi"><small>👎 Reported</small><b style={{ color: '#a33' }}>{imgVotes.down}</b></div>
+            </div>
+            <table>
+              <tbody>
+                <tr><th>Top reported issues</th><th style={{ textAlign: 'right' }}>Count</th></tr>
+                {imgIssues.map((i) => (
+                  <tr key={i.tag}><td>{i.tag}</td><td style={{ textAlign: 'right' }}><b>{i.n}</b></td></tr>
+                ))}
+                {imgIssues.length === 0 && <tr><td colSpan={2} className="admin-muted">No tagged issues.</td></tr>}
+              </tbody>
+            </table>
+          </>
         )}
       </div>
 

@@ -233,6 +233,19 @@ function analyzeStep(text: string): string {
   return bits.join(', ');
 }
 
+/**
+ * Feedback taxonomy for a step image. `label` is shown to the user; `fix` is the
+ * corrective instruction folded into the regeneration prompt so the model
+ * addresses exactly what was wrong. Shared by the client UI and the server.
+ */
+export const STEP_IMAGE_ISSUES: { key: string; label: string; fix: string }[] = [
+  { key: 'not-on-stove', label: 'Not on the stove', fix: 'the pan or pot MUST sit on a lit stovetop burner over visible heat, never floating or on a bare counter' },
+  { key: 'wrong-tool', label: 'Wrong pan/utensil', fix: 'use the correct cookware and utensil for this exact action' },
+  { key: 'ingredients-missing', label: 'Ingredients not added', fix: 'clearly show the ingredients this step names being added INTO the correct pan, pot or bowl' },
+  { key: 'unrealistic', label: 'Looks unreal', fix: 'remove any distorted, floating, duplicated or invented objects; keep hands, fingers and food proportions natural and realistic' },
+  { key: 'mismatch', label: "Doesn't match step", fix: 'the image must depict exactly what the written step describes and nothing else' },
+];
+
 /** Build the image-generation prompt illustrating a single method step. */
 export function stepImagePrompt(cuisine: string, stepText: string, title?: string): string {
   const clean = stepText.replace(/\s+/g, ' ').slice(0, 260);

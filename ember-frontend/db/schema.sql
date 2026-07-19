@@ -203,6 +203,29 @@ CREATE TABLE IF NOT EXISTS generated_images (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Per-step-image revision + accumulated correction from user feedback, so
+-- feedback-driven regenerations improve on prior attempts. Created lazily too.
+CREATE TABLE IF NOT EXISTS image_revisions (
+  base_key   TEXT PRIMARY KEY,
+  rev        INT NOT NULL DEFAULT 0,
+  correction TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Raw 👍/👎 feedback on visual-guide step images (with issue tags / notes).
+CREATE TABLE IF NOT EXISTS image_feedback (
+  id         BIGSERIAL PRIMARY KEY,
+  base_key   TEXT NOT NULL,
+  recipe_id  UUID,
+  step_index INT,
+  user_id    UUID,
+  vote       SMALLINT NOT NULL,
+  tags       TEXT[] NOT NULL DEFAULT '{}',
+  note       TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_image_feedback_base ON image_feedback(base_key);
+
 CREATE OR REPLACE FUNCTION touch_updated_at() RETURNS trigger AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
