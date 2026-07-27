@@ -49,6 +49,9 @@ function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>,
     (params.kidFriendly
       ? '- KID-FRIENDLY: mild flavours with no strong spice or heat, familiar and fun, not too adventurous, easy for young children to eat and help prepare.\n'
       : '') +
+    (params.cuisine === 'Baking'
+      ? `- BAKING: This is a baking request.${params.bakeType ? ` Bake type: ${String(params.bakeType)}.` : ''}${params.bakeFlavor ? ` Flavour direction: ${String(params.bakeFlavor)}.` : ''} Give PRECISE measurements (include weights in grams for flour, sugar, butter and other key ingredients, not just cups), the correct oven temperature (°F) and bake time, the proper mixing method, any resting/proofing/chilling, and clear doneness cues. Set the "cuisine" field to "Baking".\n`
+      : '') +
     'Respond with ONLY valid JSON, no markdown fences, exactly this shape:\n' +
     '{"title":"...","cuisine":"...","mins":30,"time":"30 min","difficulty":"Beginner|Comfortable|Adventurous","desc":"one enticing sentence","tags":["...","..."],"ingredients":["quantity ingredient","..."],"steps":["...","..."],"nutrition":{"cal":450,"protein":30,"carbs":40,"fat":18}}'
   );

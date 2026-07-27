@@ -144,7 +144,7 @@ export const sitesApi = {
 };
 
 export const generateApi = {
-  create: (body: { craving: string; cuisine: string; time: string; skill: string; onHand: string; kidFriendly?: boolean; save?: boolean }) =>
+  create: (body: { craving: string; cuisine: string; time: string; skill: string; onHand: string; kidFriendly?: boolean; bakeType?: string; bakeFlavor?: string; save?: boolean }) =>
     api<{ recipe: Recipe; usage: { used: number; limit: number } }>('/api/generate', { body }),
   quota: () => api<{ used: number; limit: number; remaining: number }>('/api/generate/quota'),
   edit: (body: { recipeText: string; instruction: string; save?: boolean }) =>

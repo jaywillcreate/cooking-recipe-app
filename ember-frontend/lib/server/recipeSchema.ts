@@ -24,10 +24,21 @@ export type GeneratedRecipe = z.infer<typeof generatedRecipeSchema>;
 
 export const CUISINE_ACCENTS: Record<string, string> = {
   Italian: '#c4552d', Japanese: '#9a6a10', Thai: '#2f7a4d', Mexican: '#b0451f', Indian: '#a8621a',
-  Korean: '#8c3b2e', Mediterranean: '#2f7a4d', French: '#7a5a2f', American: '#8c3b2e', Baking: '#9a6a10',
+  Korean: '#8c3b2e', Mediterranean: '#2f7a4d', French: '#7a5a2f', American: '#8c3b2e',
+  Chinese: '#b0392b', Vietnamese: '#2f7a4d', Spanish: '#c76a1e', Greek: '#2f6f8c', 'Middle Eastern': '#a8621a',
+  Turkish: '#8c3b2e', Moroccan: '#b0451f', Caribbean: '#1e8a6b', 'Cajun & Creole': '#a8461f', Southern: '#8c5a2f',
+  Brazilian: '#2f8a3d', Peruvian: '#b0392b', Filipino: '#9a6a10', Ethiopian: '#8c3b2e', German: '#5a6b3a',
+  British: '#7a5a2f', Persian: '#2f6f8c', Baking: '#9a6a10',
 };
 
-export const CUISINES = ['Italian', 'Japanese', 'Thai', 'Mexican', 'Indian', 'Korean', 'Mediterranean', 'French', 'American', 'Baking'];
+// Keep in sync with CUISINES in lib/tokens.ts (client copy).
+export const CUISINES = [
+  'Italian', 'Mexican', 'Chinese', 'Japanese', 'Indian', 'Thai', 'French',
+  'Mediterranean', 'Korean', 'Vietnamese', 'Spanish', 'Greek', 'American',
+  'Middle Eastern', 'Turkish', 'Moroccan', 'Caribbean', 'Cajun & Creole',
+  'Southern', 'Brazilian', 'Peruvian', 'Filipino', 'Ethiopian', 'German',
+  'British', 'Persian', 'Baking',
+];
 export const DIETS = ['None', 'Vegetarian', 'Vegan', 'Pescatarian', 'Gluten-free', 'Dairy-free', 'Low-carb'];
 export const SKILLS = ['Beginner', 'Comfortable', 'Adventurous'] as const;
 export const TIMES = ['15 min', '30 min', '45 min', '1 hr+'] as const;

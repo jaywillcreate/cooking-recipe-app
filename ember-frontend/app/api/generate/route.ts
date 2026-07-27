@@ -19,6 +19,8 @@ const schema = z.object({
   skill: z.enum(['Beginner', 'Comfortable', 'Adventurous']).default('Comfortable'),
   onHand: z.string().max(400).default(''),
   kidFriendly: z.boolean().default(false),
+  bakeType: z.string().max(40).optional(),
+  bakeFlavor: z.string().max(40).optional(),
   save: z.boolean().default(false),
 });
 
@@ -40,7 +42,11 @@ export const POST = route(async (req: NextRequest) => {
   try {
     generated = await generateRecipe({
       kind: 'create', userId: u.id, profile, hints,
-      params: { craving: b.craving || "chef's choice", cuisine: b.cuisine, timeBudget: b.time, skill: b.skill, ingredientsOnHand: b.onHand || 'anything', kidFriendly: b.kidFriendly },
+      params: {
+        craving: b.craving || "chef's choice", cuisine: b.cuisine, timeBudget: b.time, skill: b.skill,
+        ingredientsOnHand: b.onHand || 'anything', kidFriendly: b.kidFriendly,
+        ...(b.cuisine === 'Baking' ? { bakeType: b.bakeType, bakeFlavor: b.bakeFlavor } : {}),
+      },
     });
   } catch {
     throw new HttpError(502, 'Generation hiccuped — give it another try in a moment.', 'generation_failed');

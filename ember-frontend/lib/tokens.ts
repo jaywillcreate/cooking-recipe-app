@@ -32,11 +32,40 @@ export const ACCENTS: Record<string, string> = {
   Mediterranean: '#2f7a4d',
   French: '#7a5a2f',
   American: '#8c3b2e',
+  Chinese: '#b0392b',
+  Vietnamese: '#2f7a4d',
+  Spanish: '#c76a1e',
+  Greek: '#2f6f8c',
+  'Middle Eastern': '#a8621a',
+  Turkish: '#8c3b2e',
+  Moroccan: '#b0451f',
+  Caribbean: '#1e8a6b',
+  'Cajun & Creole': '#a8461f',
+  Southern: '#8c5a2f',
+  Brazilian: '#2f8a3d',
+  Peruvian: '#b0392b',
+  Filipino: '#9a6a10',
+  Ethiopian: '#8c3b2e',
+  German: '#5a6b3a',
+  British: '#7a5a2f',
+  Persian: '#2f6f8c',
   Baking: '#9a6a10',
 };
 export const accentFor = (cuisine: string): string => ACCENTS[cuisine] ?? C.rust;
 
-export const CUISINES = ['Italian', 'Japanese', 'Thai', 'Mexican', 'Indian', 'Korean', 'Mediterranean', 'French', 'American', 'Baking'];
+// Popular/broad cuisines first (Discover's quick-filter row uses the first 7),
+// then regional depth, with Baking last (it opens a dedicated options section).
+export const CUISINES = [
+  'Italian', 'Mexican', 'Chinese', 'Japanese', 'Indian', 'Thai', 'French',
+  'Mediterranean', 'Korean', 'Vietnamese', 'Spanish', 'Greek', 'American',
+  'Middle Eastern', 'Turkish', 'Moroccan', 'Caribbean', 'Cajun & Creole',
+  'Southern', 'Brazilian', 'Peruvian', 'Filipino', 'Ethiopian', 'German',
+  'British', 'Persian', 'Baking',
+];
+
+/** Baking-specific options, shown when the user picks the "Baking" cuisine. */
+export const BAKE_TYPES = ['Bread', 'Cake', 'Cookies', 'Pastry', 'Pie & Tart', 'Muffins & Quick bread', 'Cupcakes', 'Brownies & Bars', 'Scones & Biscuits', 'Doughnuts'];
+export const BAKE_FLAVORS = ['Any', 'Chocolate', 'Fruit', 'Vanilla & classic', 'Citrus', 'Nutty', 'Spiced', 'Savory'];
 export const DIETS = ['None', 'Vegetarian', 'Vegan', 'Pescatarian', 'Gluten-free', 'Dairy-free', 'Low-carb'];
 export const SKILLS = ['Beginner', 'Comfortable', 'Adventurous'];
 export const TIMES = ['15 min', '30 min', '45 min', '1 hr+'];
@@ -317,7 +346,11 @@ export function stepImageUrl(recipeId: string, cuisine: string, stepIndex: numbe
 
 const CUISINE_EMOJI: Record<string, string> = {
   Italian: '🍝', Japanese: '🍱', Thai: '🍜', Mexican: '🌮', Indian: '🍛',
-  Korean: '🍲', Mediterranean: '🥙', French: '🥐', American: '🍔', Baking: '🍪',
+  Korean: '🍲', Mediterranean: '🥙', French: '🥐', American: '🍔',
+  Chinese: '🥡', Vietnamese: '🍜', Spanish: '🥘', Greek: '🫒', 'Middle Eastern': '🧆',
+  Turkish: '🥙', Moroccan: '🍲', Caribbean: '🍹', 'Cajun & Creole': '🦐', Southern: '🍗',
+  Brazilian: '🍖', Peruvian: '🐟', Filipino: '🍢', Ethiopian: '🫓', German: '🥨',
+  British: '🥧', Persian: '🍚', Baking: '🍪',
 };
 const TAG_EMOJI: Record<string, string> = {
   pasta: '🍝', cookies: '🍪', dessert: '🍰', tacos: '🌮', salad: '🥗', seafood: '🦐',

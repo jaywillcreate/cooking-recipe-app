@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { generateApi, cookbookApi, ApiError } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import type { Recipe } from '@/lib/types';
-import { C, CUISINES, SKILLS, TIMES, chipStyle } from '@/lib/tokens';
+import { C, CUISINES, SKILLS, TIMES, BAKE_TYPES, BAKE_FLAVORS, chipStyle } from '@/lib/tokens';
 import { Spinner } from '@/components/Spinner';
 import { PreferenceSettings } from '@/components/PreferenceSettings';
 import { RecipeRemix } from '@/components/RecipeRemix';
@@ -18,6 +18,9 @@ function CreateInner() {
   const [skill, setSkill] = useState<(typeof SKILLS)[number]>('Comfortable');
   const [onHand, setOnHand] = useState('');
   const [kidFriendly, setKidFriendly] = useState(false);
+  const [bakeType, setBakeType] = useState(BAKE_TYPES[0]);
+  const [bakeFlavor, setBakeFlavor] = useState(BAKE_FLAVORS[0]);
+  const isBaking = cuisine === 'Baking';
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<Recipe | null>(null);
   const [saved, setSaved] = useState(false);
@@ -29,7 +32,10 @@ function CreateInner() {
     setResult(null);
     setSaved(false);
     try {
-      const { recipe } = await generateApi.create({ craving, cuisine, time, skill, onHand, kidFriendly });
+      const { recipe } = await generateApi.create({
+        craving, cuisine, time, skill, onHand, kidFriendly,
+        ...(isBaking ? { bakeType, bakeFlavor: bakeFlavor === 'Any' ? undefined : bakeFlavor } : {}),
+      });
       setResult(recipe);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Generation hiccuped — give it another try in a moment.');
@@ -90,11 +96,39 @@ function CreateInner() {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {['Surprise me', ...CUISINES].map((c) => (
                 <button key={c} style={chipStyle(cuisine === c, C.green, true)} onClick={() => setCuisine(c)}>
-                  {c}
+                  {c === 'Baking' ? '🧁 Baking' : c}
                 </button>
               ))}
             </div>
           </div>
+
+          {isBaking && (
+            <div style={{ marginTop: 20, padding: '18px 18px 20px', border: `1px solid ${C.line}`, borderRadius: 14, background: 'rgba(232,161,60,0.07)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 18 }}>🧁</span>
+                <div style={{ fontWeight: 800, fontSize: 15 }}>Baking studio</div>
+              </div>
+              <div style={{ fontSize: 12.5, color: C.muted65, marginBottom: 16 }}>
+                Tell us what you&apos;re baking and we&apos;ll dial in precise measurements, oven temps and technique.
+              </div>
+              <div style={label}>What are you baking?</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+                {BAKE_TYPES.map((t) => (
+                  <button key={t} style={chipStyle(bakeType === t, C.rust, true)} onClick={() => setBakeType(t)}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <div style={label}>Flavour direction</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {BAKE_FLAVORS.map((f) => (
+                  <button key={f} style={chipStyle(bakeFlavor === f, C.gold, true)} onClick={() => setBakeFlavor(f)}>
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="form-2col" style={{ marginTop: 22 }}>
             <div>
               <div style={label}>Time</div>
