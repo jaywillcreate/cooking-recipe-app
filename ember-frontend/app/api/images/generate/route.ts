@@ -22,8 +22,8 @@ export const maxDuration = 45; // Gemini generation can take a while
 // Bump the version suffix to invalidate cached images after a prompt change.
 // Steps version is separate so improving step prompts doesn't force every hero
 // image to regenerate (and steps still anchor to the v2 hero).
-const CACHE_VERSION = 'v2';
-const STEP_CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v3';
+const STEP_CACHE_VERSION = 'v4';
 // Cap feedback-driven regenerations per image so spend stays bounded.
 const MAX_REVISIONS = 4;
 

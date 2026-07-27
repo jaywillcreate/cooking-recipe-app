@@ -163,15 +163,24 @@ export function pollinationsUrl(prompt: string, width: number, height: number, s
 }
 
 /**
- * Shared photographic style so a recipe's hero and every step read as one
- * coherent, high-quality series shot in the same kitchen.
+ * Professional food-photography direction (foodgawker / editorial cookbook
+ * style). Two looks keep a recipe's hero and its step series coherent:
+ * PLATED_STYLE for finished dishes, PREP_STYLE for in-progress technique shots.
+ * REALISM guards against the common AI food-image defects (bad hands, mixed
+ * raw/cooked textures, floating objects).
  */
-const KITCHEN_STYLE =
-  'shot in a warm modern home kitchen on a light wooden countertop, soft natural window light, shallow depth of field, realistic high-resolution DSLR food photography, magazine quality, sharp focus, appetizing, no text or watermarks';
+const REALISM =
+  'photorealistic; natural human hands with the correct number of hands and fingers and a natural grip on any tool; cooked and raw textures accurate and consistent for this exact stage of cooking (never mix raw and finished looks); no floating, duplicated, distorted or invented objects; no text, labels or watermarks';
+
+const PLATED_STYLE =
+  'editorial food photography: soft, diffused natural side-lighting from a large window with gentle shadows and subtle negative fill for a three-dimensional look; a non-reflective matte ceramic plate on a neutral matte surface (dark slate, weathered wood or concrete); minimal rustic props; one authentic finishing detail (an intentional garnish, a light sauce drip or a few crumbs); clean, slightly out-of-focus background; the food plated to culinary-industry standards';
+
+const PREP_STYLE =
+  "instructional cookbook photography: bright, soft, diffused natural side-lighting with high clarity and crisp detail and no harsh glare on tools or wet ingredients; a neutral, clean, non-reflective matte surface (marble, light wood or concrete); the recipe's raw, whole ingredients arranged tidily in the background to show the components; an uncluttered, instructional frame focused on the hands executing the technique";
 
 /** Build the image-generation prompt for a specific recipe's finished dish. */
 export function recipeImagePrompt(title: string, cuisine: string): string {
-  return `Appetizing overhead hero photo of the finished dish "${title}" (${cuisine} cuisine), beautifully plated on a ceramic plate, garnished, ${KITCHEN_STYLE}.`;
+  return `Appetizing 45-degree hero photo of the finished dish "${title}" (${cuisine} cuisine), beautifully plated and garnished. ${PLATED_STYLE}. ${REALISM}.`;
 }
 
 /**
@@ -180,7 +189,7 @@ export function recipeImagePrompt(title: string, cuisine: string): string {
  * involved. This grounds the generated image in real cooking so pans are on the
  * heat, ingredients land in the right container, and utensils match the task.
  */
-function analyzeStep(text: string): string {
+function analyzeStep(text: string): { scene: string; angle: string; motion: string; plated: boolean } {
   const s = ` ${text.toLowerCase()} `;
   const has = (...ws: string[]) => ws.some((w) => s.includes(w));
 
@@ -204,7 +213,7 @@ function analyzeStep(text: string): string {
   const cut = has('chop', 'dice', 'slice', 'mince', 'julienne', 'peel', 'grate', 'shred', 'cut ', 'trim');
   const mix = has('whisk', 'mix', 'combine', 'beat', 'fold', 'stir together', 'toss', 'marinat', 'coat', 'season', 'mash', 'knead', 'dress', 'whip', 'blend', 'batter');
   const add = has('add', 'pour', 'drop', 'sprinkle', 'stir in', 'incorporat', 'transfer', 'fold in', 'arrange', 'layer', 'top with', 'spoon');
-  const plate = has('serve', 'plate', 'garnish', 'drizzle', 'divide among', 'divide between');
+  const plate = has('serve', 'plated', 'garnish', 'drizzle', 'top with', 'among bowls', 'among plates', 'between bowls', 'between plates', 'onto plates', 'onto a plate', 'to plates', 'to bowls', 'serving');
 
   if (!vessel) {
     if (oven) vessel = 'a baking dish';
@@ -218,19 +227,47 @@ function analyzeStep(text: string): string {
 
   // Cooking/heat dominates the scene when present (e.g. "add the diced onions
   // and sauté" is a stovetop step, not a cutting step — "diced" just describes
-  // the onion). Pure prep actions fall through to the board/bowl.
-  const bits: string[] = [];
-  if (oven) bits.push(`${vessel} of food going into or resting inside a home oven`);
-  else if (grill) bits.push(`food cooking on a hot grill with visible grill marks`);
-  else if (onHeat) bits.push(`${vessel} sitting ON a lit stovetop burner over visible heat, with gentle steam or a light sizzle`);
-  else if (mix) bits.push(`ingredients being combined in ${vessel} on the countertop using the right tool (whisk, spatula or spoon)`);
-  else if (cut) bits.push(`ingredients being ${text.match(/\b(chop|dice|slice|mince|peel|grate|shred|trim)\w*/i)?.[0]?.toLowerCase() ?? 'cut'} on a wooden cutting board with a chef's knife`);
-  else if (plate) bits.push(`the finished dish being portioned and garnished on serving plates or bowls`);
-  else bits.push(`the ingredients resting in ${vessel}`);
+  // the onion). Pure prep actions fall through to the board/bowl. The camera
+  // angle + frozen-motion follow food-photography convention for each action.
+  let scene: string;
+  let angle = 'sharp 45-degree over-the-shoulder';
+  let motion = '';
+  let plated = false;
 
-  if (add && !cut && !plate && !oven) bits.push(`the ingredient this step names shown mid-motion clearly being added INTO ${vessel}`);
+  if (oven) {
+    scene = `${vessel} of food going into or resting inside a home oven`;
+    angle = '45-degree';
+    motion = 'golden colour just beginning to develop';
+  } else if (grill) {
+    scene = 'food searing on a hot grill with clear grill marks';
+    motion = 'a little smoke and char rising from the grates';
+  } else if (onHeat) {
+    scene = `${vessel} sitting ON a lit stovetop burner over visible heat, a hand guiding the food with a spatula or tongs`;
+    motion = 'gentle steam or a light sizzle rising from the pan';
+  } else if (mix) {
+    scene = `ingredients being combined in ${vessel} using the right tool (whisk, spatula or spoon)`;
+    angle = 'top-down overhead';
+    motion = has('pour') ? 'a smooth stream pouring in' : 'the mixture caught in motion';
+  } else if (cut) {
+    const verb = text.match(/\b(chop|dice|slice|mince|peel|grate|shred|trim)\w*/i)?.[0]?.toLowerCase() ?? 'cut';
+    scene = `ingredients being ${verb} on a wooden cutting board — one hand steadying the food, the other holding a sharp chef's knife in a safe grip`;
+    angle = 'macro close-up';
+    motion = 'clean, even knife cuts';
+  } else if (plate) {
+    scene = 'the finished dish being portioned and garnished on serving plates or bowls';
+    angle = '45-degree diner\'s';
+    motion = 'a final garnish being placed by hand';
+    plated = true;
+  } else {
+    scene = `the ingredients resting in ${vessel}`;
+  }
 
-  return bits.join(', ');
+  if (add && !cut && !plate && !oven) {
+    scene += `; the ingredient this step names shown mid-motion clearly being added INTO ${vessel}`;
+    motion = motion || 'the ingredient caught mid-pour or mid-drop as it enters the vessel';
+  }
+
+  return { scene, angle, motion, plated };
 }
 
 /**
@@ -250,13 +287,14 @@ export const STEP_IMAGE_ISSUES: { key: string; label: string; fix: string }[] = 
 export function stepImagePrompt(cuisine: string, stepText: string, title?: string): string {
   const clean = stepText.replace(/\s+/g, ' ').slice(0, 260);
   const dish = title ? ` while making "${title}" (${cuisine} cuisine)` : ` (${cuisine} cuisine)`;
-  const scene = analyzeStep(clean);
+  const a = analyzeStep(clean);
   return [
-    `Photorealistic close-up instructional cooking photo showing exactly this recipe step${dish}: "${clean}".`,
-    `Show: ${scene}.`,
-    `Cooking realism (must obey): any pan or pot used to cook sits directly on a lit stovetop burner over visible heat — never floating or on a bare counter; ingredients being added are clearly going INTO the correct pan, pot or bowl (not beside it); include only the ingredients and utensils this exact step needs and nothing extra or invented; realistic proportions and quantities; at most two human hands, correct number of fingers; no duplicated, floating, or nonsensical objects; utensils must match the task (knife for cutting, whisk/spoon for mixing, tongs or spatula at the pan).`,
-    KITCHEN_STYLE + '.',
-  ].join(' ');
+    `Photorealistic ${a.angle} instructional cooking photo showing exactly this recipe step${dish}: "${clean}".`,
+    `Show: ${a.scene}.`,
+    a.motion ? `Capture an authentic mid-action moment: ${a.motion}.` : '',
+    `Cooking realism (must obey): any pan or pot used to cook sits directly on a lit stovetop burner over visible heat — never floating or on a bare counter; ingredients being added are clearly going INTO the correct pan, pot or bowl (not beside it); the cooking technique shown must be culinarily correct for this step; include only the ingredients and utensils this exact step needs; utensils must match the task (knife for cutting, whisk/spoon for mixing, tongs or spatula at the pan).`,
+    `${a.plated ? PLATED_STYLE : PREP_STYLE}. ${REALISM}.`,
+  ].filter(Boolean).join(' ');
 }
 
 /**

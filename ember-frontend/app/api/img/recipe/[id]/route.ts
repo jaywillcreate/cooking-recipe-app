@@ -10,7 +10,7 @@ import { recipeImagePrompt, hashId, accentFor } from '@/lib/tokens';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 45;
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 
 /**
  * Public image proxy for a recipe's dish photo. Browsers hit THIS (same-origin,

@@ -7,7 +7,7 @@ import type { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const STEP_CACHE_VERSION = 'v3';
+const STEP_CACHE_VERSION = 'v4';
 
 const schema = z.object({
   recipeId: z.string().uuid(),
