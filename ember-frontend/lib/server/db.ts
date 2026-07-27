@@ -58,6 +58,25 @@ export async function queryOne<T extends QueryResultRow = QueryResultRow>(
   return rows[0] ?? null;
 }
 
+/**
+ * Ensure the "Baking studio" profile columns exist (lazy, once per warm
+ * instance) so the push-to-Vercel flow doesn't need a manual migration before
+ * the profile read/write that reference them.
+ */
+let bakingColsEnsured: Promise<void> | null = null;
+export function ensureBakingColumns(): Promise<void> {
+  if (!bakingColsEnsured) {
+    bakingColsEnsured = (async () => {
+      await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bake_type TEXT NOT NULL DEFAULT ''`);
+      await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bake_flavor TEXT NOT NULL DEFAULT ''`);
+    })().catch((err) => {
+      bakingColsEnsured = null; // allow a retry on the next call
+      throw err;
+    });
+  }
+  return bakingColsEnsured;
+}
+
 export async function tx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await getPool().connect();
   try {

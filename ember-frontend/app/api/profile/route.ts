@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { route, requireUser, readBody, json, notFound } from '@/lib/server/http';
-import { query, queryOne } from '@/lib/server/db';
+import { query, queryOne, ensureBakingColumns } from '@/lib/server/db';
 import { CUISINES, DIETS, SKILLS, TIMES, GOALS } from '@/lib/server/recipeSchema';
 import type { NextRequest } from 'next/server';
 
@@ -8,11 +8,13 @@ export const dynamic = 'force-dynamic';
 
 export const GET = route(async (req: NextRequest) => {
   const u = requireUser(req);
+  await ensureBakingColumns();
   const p = await queryOne(
     `SELECT p.name, u.email, p.email_daily AS "emailDaily", p.cuisines, p.diets, p.allergies,
             p.skill, p.time_budget AS "time", p.goal, p.onboarded, p.avatar_url AS "avatarUrl",
             p.daily_on_hand AS "dailyOnHand", p.timezone, p.kid_friendly AS "kidFriendly",
             p.daily_hour AS "deliveryHour", p.allergens,
+            p.bake_type AS "bakeType", p.bake_flavor AS "bakeFlavor",
             (u.password_hash IS NOT NULL) AS "hasPassword"
        FROM profiles p JOIN users u ON u.id = p.user_id WHERE p.user_id = $1`,
     [u.id],
@@ -37,17 +39,21 @@ const patchSchema = z
     kidFriendly: z.boolean(),
     deliveryHour: z.number().int().min(0).max(23),
     allergens: z.array(z.string().max(40)).max(20),
+    bakeType: z.string().max(40),
+    bakeFlavor: z.string().max(40),
   })
   .partial();
 
 const COLS: Record<string, string> = {
   name: 'name', emailDaily: 'email_daily', cuisines: 'cuisines', diets: 'diets', allergies: 'allergies',
   skill: 'skill', time: 'time_budget', goal: 'goal', onboarded: 'onboarded', dailyOnHand: 'daily_on_hand', timezone: 'timezone', kidFriendly: 'kid_friendly', deliveryHour: 'daily_hour', allergens: 'allergens',
+  bakeType: 'bake_type', bakeFlavor: 'bake_flavor',
 };
 
 export const PATCH = route(async (req: NextRequest) => {
   const u = requireUser(req);
   const body = await readBody(req, patchSchema);
+  if ('bakeType' in body || 'bakeFlavor' in body) await ensureBakingColumns();
   const sets: string[] = [];
   const vals: unknown[] = [];
   for (const [k, col] of Object.entries(COLS)) {

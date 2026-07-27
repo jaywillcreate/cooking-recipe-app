@@ -40,6 +40,8 @@ export interface Profile {
   kidFriendly: boolean;
   deliveryHour: number;
   allergens: string[];
+  bakeType: string;
+  bakeFlavor: string;
   hasPassword: boolean;
 }
 

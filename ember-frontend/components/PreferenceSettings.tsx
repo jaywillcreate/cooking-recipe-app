@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/lib/store';
 import type { Profile } from '@/lib/types';
-import { C, CUISINES, DIETS, TIMES, SKILLS, GOALS, ALLERGENS, chipStyle } from '@/lib/tokens';
+import { C, CUISINES, DIETS, TIMES, SKILLS, GOALS, ALLERGENS, BAKE_TYPES, BAKE_FLAVORS, chipStyle } from '@/lib/tokens';
 import { Spinner } from './Spinner';
 
 function formatHour(h: number): string {
@@ -33,7 +33,7 @@ export function PreferenceSettings({
   sticky?: boolean;
   className?: string;
   /** Render only these sections (default: all). */
-  only?: Array<'cuisines' | 'diet' | 'time' | 'skill' | 'goal' | 'kid' | 'allergies' | 'pantry' | 'email'>;
+  only?: Array<'cuisines' | 'baking' | 'diet' | 'time' | 'skill' | 'goal' | 'kid' | 'allergies' | 'pantry' | 'email'>;
   /** Render just the section chips with no card/title wrapper (to embed inline). */
   bare?: boolean;
 }) {
@@ -85,8 +85,30 @@ export function PreferenceSettings({
           <div style={sectionLabel}>Favourite cuisines</div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {CUISINES.map((c) => (
-              <button key={c} style={chipStyle(p.cuisines.includes(c), C.rust, true)} onClick={() => toggleArr('cuisines', c)}>{c}</button>
+              <button key={c} style={chipStyle(p.cuisines.includes(c), C.rust, true)} onClick={() => toggleArr('cuisines', c)}>{c === 'Baking' ? '🧁 Baking' : c}</button>
             ))}
+          </div>
+        </div>
+        )}
+        {show('baking') && p.cuisines.includes('Baking') && (
+        <div style={{ padding: '14px 14px 16px', border: `1px solid ${C.line}`, borderRadius: 12, background: 'rgba(232,161,60,0.07)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+            <span style={{ fontSize: 16 }}>🧁</span>
+            <div style={{ fontWeight: 800, fontSize: 13.5 }}>Baking studio</div>
+          </div>
+          <div style={sectionLabel}>When your daily is a bake</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+            {['Any', ...BAKE_TYPES].map((t) => {
+              const active = t === 'Any' ? !p.bakeType : p.bakeType === t;
+              return <button key={t} style={chipStyle(active, C.rust, true)} onClick={() => patchProfile({ bakeType: t === 'Any' ? '' : t })}>{t}</button>;
+            })}
+          </div>
+          <div style={sectionLabel}>Flavour direction</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {BAKE_FLAVORS.map((f) => {
+              const active = f === 'Any' ? !p.bakeFlavor : p.bakeFlavor === f;
+              return <button key={f} style={chipStyle(active, C.gold, true)} onClick={() => patchProfile({ bakeFlavor: f === 'Any' ? '' : f })}>{f}</button>;
+            })}
           </div>
         </div>
         )}

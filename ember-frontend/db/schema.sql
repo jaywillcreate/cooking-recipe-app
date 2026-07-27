@@ -51,11 +51,15 @@ CREATE TABLE IF NOT EXISTS profiles (
   kid_friendly BOOLEAN NOT NULL DEFAULT FALSE,
   daily_hour INTEGER NOT NULL DEFAULT 8,     -- local hour (0-23) to deliver the daily recipe
   allergens TEXT[] NOT NULL DEFAULT '{}',     -- selected common allergens
+  bake_type TEXT NOT NULL DEFAULT '',         -- daily "Baking studio": preferred bake type
+  bake_flavor TEXT NOT NULL DEFAULT '',       -- daily "Baking studio": preferred flavour direction
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS kid_friendly BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS daily_hour INTEGER NOT NULL DEFAULT 8;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS allergens TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bake_type TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bake_flavor TEXT NOT NULL DEFAULT '';
 
 -- Thumbs up/down on recipes → personalizes future AI generations.
 CREATE TABLE IF NOT EXISTS recipe_feedback (

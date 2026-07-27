@@ -52,6 +52,9 @@ function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>,
     (params.cuisine === 'Baking'
       ? `- BAKING: This is a baking request.${params.bakeType ? ` Bake type: ${String(params.bakeType)}.` : ''}${params.bakeFlavor ? ` Flavour direction: ${String(params.bakeFlavor)}.` : ''} Give PRECISE measurements (include weights in grams for flour, sugar, butter and other key ingredients, not just cups), the correct oven temperature (°F) and bake time, the proper mixing method, any resting/proofing/chilling, and clear doneness cues. Set the "cuisine" field to "Baking".\n`
       : '') +
+    (params.cuisine !== 'Baking' && (params.bakeType || params.bakeFlavor)
+      ? `- BAKING OPTION: If you choose Baking as this recipe's cuisine${params.bakeType ? ` (bake type: ${String(params.bakeType)})` : ''}${params.bakeFlavor ? ` (flavour: ${String(params.bakeFlavor)})` : ''}, then follow baking rules: precise gram weights, correct oven temperature (°F) and bake time, proper mixing method, any resting/proofing/chilling, and clear doneness cues.\n`
+      : '') +
     'Respond with ONLY valid JSON, no markdown fences, exactly this shape:\n' +
     '{"title":"...","cuisine":"...","mins":30,"time":"30 min","difficulty":"Beginner|Comfortable|Adventurous","desc":"one enticing sentence","tags":["...","..."],"ingredients":["quantity ingredient","..."],"steps":["...","..."],"nutrition":{"cal":450,"protein":30,"carbs":40,"fat":18}}'
   );

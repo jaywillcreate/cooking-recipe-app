@@ -1,5 +1,5 @@
 import 'server-only';
-import { query, queryOne, tx } from '../db';
+import { query, queryOne, tx, ensureBakingColumns } from '../db';
 import { logger } from '../logger';
 import { config } from '../config';
 import { generateRecipe, type ProfileForPrompt } from './ai';
@@ -19,6 +19,8 @@ interface ProfileRow extends ProfileForPrompt {
   kid_friendly: boolean;
   daily_hour: number;
   allergens: string[];
+  bake_type: string;
+  bake_flavor: string;
 }
 
 function localDate(timezone: string): string {
@@ -45,15 +47,20 @@ export async function generateDailyFor(
   userId: string,
   opts: { force?: boolean; sendMail?: boolean } = {},
 ): Promise<{ recipe: GeneratedRecipe & { id: string; cuisine: string }; alreadyExisted: boolean }> {
+  await ensureBakingColumns();
   const profile = await queryOne<ProfileRow>(
     `SELECT p.user_id, p.name, u.email, p.email_daily, p.cuisines, p.diets, p.allergies,
             p.skill, p.time_budget, p.goal, p.daily_on_hand, p.timezone, p.kid_friendly,
-            p.daily_hour, p.allergens
+            p.daily_hour, p.allergens, p.bake_type, p.bake_flavor
        FROM profiles p JOIN users u ON u.id = p.user_id
       WHERE p.user_id = $1 AND u.status = 'active'`,
     [userId],
   );
   if (!profile) throw new Error('profile_not_found');
+
+  // If the user has "Baking" among their favourite cuisines, let the daily lean
+  // into baking and honour their Baking-studio picks when it does.
+  const wantsBaking = (profile.cuisines ?? []).includes('Baking');
 
   const forDate = localDate(profile.timezone);
 
@@ -70,7 +77,15 @@ export async function generateDailyFor(
     userId,
     profile: { ...profile, allergies: combineAllergies(profile.allergies, profile.allergens) },
     hints: await buildPreferenceHints(userId),
-    params: { purpose: 'daily personalized recipe of the day, surprise and delight', cuisine: 'Surprise me', skill: profile.skill, timeBudget: profile.time_budget, ingredientsUsuallyOnHand: profile.daily_on_hand || 'typical pantry', kidFriendly: profile.kid_friendly },
+    params: {
+      purpose: 'daily personalized recipe of the day, surprise and delight',
+      cuisine: 'Surprise me',
+      skill: profile.skill,
+      timeBudget: profile.time_budget,
+      ingredientsUsuallyOnHand: profile.daily_on_hand || 'typical pantry',
+      kidFriendly: profile.kid_friendly,
+      ...(wantsBaking ? { bakeType: profile.bake_type || undefined, bakeFlavor: profile.bake_flavor || undefined } : {}),
+    },
   });
 
   const recipeRow = await tx(async () => {
