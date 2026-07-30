@@ -8,6 +8,7 @@ import { C, chipStyle, recipeImageUrl, scaleIngredient, BASE_SERVINGS } from '@/
 import { ImageUpload } from '@/components/ImageUpload';
 import { Spinner } from '@/components/Spinner';
 import { Feedback } from '@/components/Feedback';
+import { StarRating } from '@/components/StarRating';
 import { ShoppingList } from '@/components/ShoppingList';
 import { KitchenIcon } from '@/components/KitchenIcons';
 import { StepImage } from '@/components/StepImage';
@@ -178,8 +179,11 @@ export default function RecipeDetailPage() {
                 ✉ Email recipe
               </button>
               <div style={{ fontSize: 12, color: C.muted55, fontWeight: 500, textAlign: 'center' }}>{recipe.meta}</div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 2 }}>
-                <span style={{ fontSize: 11.5, color: C.muted55 }}>Rate:</span>
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
+                <StarRating recipeId={recipe.id} initialMine={recipe.myStars ?? 0} initialAvg={recipe.starsAvg ?? null} initialCount={recipe.starsCount ?? 0} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <span style={{ fontSize: 11.5, color: C.muted55 }}>Personalize:</span>
                 <Feedback recipeId={recipe.id} initial={recipe.vote} />
               </div>
             </div>

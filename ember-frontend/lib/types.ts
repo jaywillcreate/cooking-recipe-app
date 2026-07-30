@@ -21,6 +21,10 @@ export interface Recipe {
   sourceLabel: string;
   saved: boolean;
   vote: number; // 1 up, -1 down, 0 none
+  // 5-star rating — present only on the recipe DETAIL payload (not list/cards).
+  myStars?: number;
+  starsAvg?: number | null;
+  starsCount?: number;
 }
 
 export interface Profile {

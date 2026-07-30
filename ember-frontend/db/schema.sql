@@ -230,6 +230,24 @@ CREATE TABLE IF NOT EXISTS image_feedback (
 );
 CREATE INDEX IF NOT EXISTS idx_image_feedback_base ON image_feedback(base_key);
 
+-- 5-star recipe ratings (one per user per recipe; created lazily too).
+CREATE TABLE IF NOT EXISTS recipe_stars (
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipe_id  UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  stars      SMALLINT NOT NULL CHECK (stars BETWEEN 1 AND 5),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, recipe_id)
+);
+
+-- Distilled culinary-best-practice guidance, refreshed weekly by the research
+-- agent (/api/cron/culinary) and folded into recipe-generation prompts.
+CREATE TABLE IF NOT EXISTS culinary_guidance (
+  id         BIGSERIAL PRIMARY KEY,
+  content    TEXT NOT NULL,
+  sources    JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE OR REPLACE FUNCTION touch_updated_at() RETURNS trigger AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;

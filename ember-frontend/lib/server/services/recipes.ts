@@ -1,6 +1,7 @@
 import 'server-only';
 import { query, queryOne } from '../db';
 import { CUISINE_ACCENTS, type GeneratedRecipe } from '../recipeSchema';
+import { getStarSummary } from './ratings';
 
 export interface RecipeRow {
   id: string;
@@ -84,15 +85,19 @@ export async function customTagsFor(userId: string, recipeId: string): Promise<s
   return rows.map((r) => r.tag);
 }
 
-/** Load a visible recipe and serialize it fully (saved, tags, per-user photo). */
+/** Load a visible recipe and serialize it fully (saved, tags, per-user photo, stars). */
 export async function serializeRecipeForUser(userId: string, recipeId: string): Promise<Record<string, unknown> | null> {
   const row = await getVisibleRecipe(userId, recipeId);
   if (!row) return null;
-  const [savedRow, ctags, photoRow, voteRow] = await Promise.all([
+  const [savedRow, ctags, photoRow, voteRow, stars] = await Promise.all([
     queryOne(`SELECT 1 FROM saves WHERE user_id = $1 AND recipe_id = $2`, [userId, recipeId]),
     customTagsFor(userId, recipeId),
     queryOne<{ url: string }>(`SELECT url FROM recipe_photos WHERE user_id = $1 AND recipe_id = $2`, [userId, recipeId]),
     queryOne<{ vote: number }>(`SELECT vote FROM recipe_feedback WHERE user_id = $1 AND recipe_id = $2`, [userId, recipeId]),
+    getStarSummary(userId, recipeId),
   ]);
-  return serializeRecipe(row, { saved: !!savedRow, customTags: ctags, userPhoto: photoRow?.url ?? null, vote: voteRow?.vote ?? 0 });
+  return {
+    ...serializeRecipe(row, { saved: !!savedRow, customTags: ctags, userPhoto: photoRow?.url ?? null, vote: voteRow?.vote ?? 0 }),
+    ...stars, // myStars / starsAvg / starsCount — detail page only (cards use the list routes)
+  };
 }

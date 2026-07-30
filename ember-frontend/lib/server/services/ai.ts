@@ -4,6 +4,7 @@ import { config } from '../config';
 import { logger } from '../logger';
 import { query } from '../db';
 import { generatedRecipeSchema, type GeneratedRecipe } from '../recipeSchema';
+import { getCulinaryGuidance } from './culinaryAgent';
 
 let _client: Anthropic | null = null;
 const client = () => (_client ??= new Anthropic({ apiKey: config.anthropicApiKey }));
@@ -27,7 +28,21 @@ export interface GenerateParams {
   hints?: PreferenceHints;
 }
 
-function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>, hints?: PreferenceHints): string {
+/**
+ * Research-backed rules for the step-by-step Method (from top culinary sources:
+ * Serious Eats / America's Test Kitchen / pro recipe-writing guides). The
+ * culinary research agent supplements these with fresher guidance over time.
+ */
+const METHOD_RULES =
+  'METHOD (write the steps like a top-tier culinary site):\n' +
+  '- Begin each step with a strong action verb; ONE main technique per step, in strict logical order. If prep matters, make step 1 the mise en place (what to chop/measure/preheat before heat goes on).\n' +
+  '- Every cooking step states the heat level (e.g. medium-high), a realistic time range, AND a sensory doneness cue — how it should look, sound, smell or feel ("until deeply golden and nutty-smelling, 3–4 minutes"). NEVER "cook until done".\n' +
+  '- Give safe internal temperatures in °F for meat, poultry, fish and eggs, and where to probe. Note resting time and carryover cooking when relevant ("rest 5 min; temperature will climb ~5°F").\n' +
+  '- Name the pan/pot size and utensil when it matters ("12-inch skillet", "rubber spatula"). Season in layers as you go, tasting where safe.\n' +
+  '- Where technique matters, add a short WHY in the step ("don\'t crowd the pan — steam prevents browning"; "off heat so the garlic doesn\'t scorch").\n' +
+  '- Steps must be self-contained and specific enough that a nervous beginner could follow them; include visual descriptions of what the food looks like at each stage.\n';
+
+function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>, hints?: PreferenceHints, guidance?: string): string {
   const hintLine =
     hints && (hints.liked.length || hints.disliked.length)
       ? `Personalize using this feedback — the user has LIKED: [${hints.liked.join(', ')}]; the user has DISLIKED: [${hints.disliked.join(', ')}]. Lean toward liked styles and avoid disliked ones.\n`
@@ -55,6 +70,8 @@ function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>,
     (params.cuisine !== 'Baking' && (params.bakeType || params.bakeFlavor)
       ? `- BAKING OPTION: If you choose Baking as this recipe's cuisine${params.bakeType ? ` (bake type: ${String(params.bakeType)})` : ''}${params.bakeFlavor ? ` (flavour: ${String(params.bakeFlavor)})` : ''}, then follow baking rules: precise gram weights, correct oven temperature (°F) and bake time, proper mixing method, any resting/proofing/chilling, and clear doneness cues.\n`
       : '') +
+    METHOD_RULES +
+    (guidance ? 'CURRENT CULINARY GUIDANCE (research-refreshed; also apply when writing the steps):\n' + guidance + '\n' : '') +
     'Respond with ONLY valid JSON, no markdown fences, exactly this shape:\n' +
     '{"title":"...","cuisine":"...","mins":30,"time":"30 min","difficulty":"Beginner|Comfortable|Adventurous","desc":"one enticing sentence","tags":["...","..."],"ingredients":["quantity ingredient","..."],"steps":["...","..."],"nutrition":{"cal":450,"protein":30,"carbs":40,"fat":18}}'
   );
@@ -94,7 +111,9 @@ async function runGeneration(prompt: string, input: GenerateParams): Promise<Gen
 }
 
 export async function generateRecipe(input: GenerateParams): Promise<GeneratedRecipe> {
-  return runGeneration(buildPrompt(input.profile, input.params, input.hints), input);
+  // Latest agent-researched guidance (cached; empty string until first refresh).
+  const guidance = await getCulinaryGuidance().catch(() => '');
+  return runGeneration(buildPrompt(input.profile, input.params, input.hints, guidance), input);
 }
 
 const RECIPE_SHAPE =

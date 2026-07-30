@@ -96,6 +96,8 @@ export const recipeApi = {
     return api<{ recipes: Recipe[] }>(`/api/recipes?${qs.toString()}`);
   },
   get: (id: string) => api<{ recipe: Recipe }>(`/api/recipes/${id}`),
+  rate: (id: string, stars: number) =>
+    api<{ myStars: number; starsAvg: number | null; starsCount: number }>(`/api/recipes/${id}/rate`, { body: { stars } }),
   email: (id: string, body: { to: string; note?: string }) =>
     api<{ sent: number; recipients: number; delivered: boolean }>(`/api/recipes/${id}/email`, { body }),
   feedback: (id: string, vote: 1 | -1 | 0) => api<{ vote: number }>(`/api/recipes/${id}/feedback`, { body: { vote } }),
