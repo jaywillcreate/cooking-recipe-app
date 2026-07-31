@@ -40,7 +40,8 @@ const METHOD_RULES =
   '- Give safe internal temperatures in °F for meat, poultry, fish and eggs, and where to probe. Note resting time and carryover cooking when relevant ("rest 5 min; temperature will climb ~5°F").\n' +
   '- Name the pan/pot size and utensil when it matters ("12-inch skillet", "rubber spatula"). Season in layers as you go, tasting where safe.\n' +
   '- Where technique matters, add a short WHY in the step ("don\'t crowd the pan — steam prevents browning"; "off heat so the garlic doesn\'t scorch").\n' +
-  '- Steps must be self-contained and specific enough that a nervous beginner could follow them; include visual descriptions of what the food looks like at each stage.\n';
+  '- Steps must be self-contained and specific enough that a nervous beginner could follow them; include visual descriptions of what the food looks like at each stage.\n' +
+  '- LENGTH: at most 12 steps, each under 55 words. Be complete but economical — cues and temps, not prose.\n';
 
 function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>, hints?: PreferenceHints, guidance?: string): string {
   const hintLine =
@@ -78,7 +79,9 @@ function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>,
 }
 
 function extractJson(text: string): unknown {
-  const match = text.match(/\{[\s\S]*\}/);
+  // Tolerate markdown fences and any preamble/afterword around the JSON object.
+  const cleaned = text.replace(/```(?:json)?/gi, '');
+  const match = cleaned.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('no_json_in_response');
   return JSON.parse(match[0]);
 }
@@ -90,14 +93,17 @@ async function runGeneration(prompt: string, input: GenerateParams): Promise<Gen
     let inTok = 0;
     let outTok = 0;
     try {
+      // Detailed method steps can be long; give the retry double the budget so a
+      // response truncated at max_tokens (→ unparseable JSON) succeeds on pass 2.
       const msg = await client().messages.create({
         model: config.anthropicModel,
-        max_tokens: config.anthropicMaxTokens,
+        max_tokens: config.anthropicMaxTokens * (attempt + 1),
         messages: [{ role: 'user', content: prompt }],
       });
       inTok = msg.usage.input_tokens;
       outTok = msg.usage.output_tokens;
       const text = msg.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
+      if (msg.stop_reason === 'max_tokens') logger.warn({ attempt, outTok }, 'Recipe generation hit max_tokens — response truncated');
       const recipe = generatedRecipeSchema.parse(extractJson(text));
       await logUsage(input, inTok, outTok, true, null);
       return recipe;

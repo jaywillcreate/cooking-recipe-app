@@ -41,7 +41,9 @@ export const config = {
     return req('ANTHROPIC_API_KEY');
   },
   anthropicModel: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5',
-  anthropicMaxTokens: parseInt(process.env.ANTHROPIC_MAX_TOKENS ?? '2500', 10),
+  // Recipes with detailed method steps (temps, doneness cues, tips) need more
+  // room than the original 2500 — a truncated response = unparseable JSON.
+  anthropicMaxTokens: parseInt(process.env.ANTHROPIC_MAX_TOKENS ?? '4000', 10),
 
   genDailyLimit: parseInt(process.env.GEN_DAILY_LIMIT ?? '25', 10),
 
