@@ -10,7 +10,8 @@ export const GET = route(async (req: NextRequest) => {
   const u = requireUser(req);
   const sp = req.nextUrl.searchParams;
   const q = z.string().max(120).optional().parse(sp.get('q') || undefined);
-  const cuisine = z.string().max(30).optional().parse(sp.get('cuisine') || undefined);
+  // Single cuisine or comma-separated list (multi-select filter chips).
+  const cuisine = z.string().max(400).optional().parse(sp.get('cuisine') || undefined);
   const scope = z.enum(['discover', 'saved', 'web']).default('discover').parse(sp.get('scope') || 'discover');
 
   const where: string[] = ['(r.owner_id IS NULL OR r.owner_id = $1)'];
@@ -22,9 +23,10 @@ export const GET = route(async (req: NextRequest) => {
     where.push(`r.source IS NULL`);
   }
   if (scope === 'saved') where.push(`EXISTS (SELECT 1 FROM saves s WHERE s.user_id = $1 AND s.recipe_id = r.id)`);
-  if (cuisine && cuisine !== 'All') {
-    params.push(cuisine);
-    where.push(`r.cuisine = $${params.length}`);
+  const cuisineList = (cuisine ?? '').split(',').map((c) => c.trim()).filter((c) => c && c !== 'All');
+  if (cuisineList.length) {
+    params.push(cuisineList);
+    where.push(`r.cuisine = ANY($${params.length}::text[])`);
   }
   if (q) {
     params.push(q);

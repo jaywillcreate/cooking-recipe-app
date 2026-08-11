@@ -63,16 +63,16 @@ function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>,
     hintLine +
     'RULES:\n' +
     '- Dietary restrictions and allergies are ABSOLUTE — never use them or their derivatives, no exceptions.\n' +
-    '- Cuisine: if the request names a specific cuisine, use exactly that one. Only if it says "Surprise me" or names none, pick one from favoriteCuisines (or your choice if none).\n' +
+    '- Cuisine: if the request names exactly one cuisine, use exactly that one. If it names SEVERAL cuisines, stay within them — when creating variations, spread them across the named cuisines (or one tasteful fusion of them). Only if it says "Surprise me" or names none, pick one from favoriteCuisines (or your choice if none).\n' +
     '- AUTHENTICITY: build the dish from ingredients, seasonings, pantry staples, and techniques that are genuinely traditional to the chosen cuisine. Do not substitute generic or out-of-place ingredients; the result should read as authentically that cuisine.\n' +
     '- Match the requested time budget and skill level; scale ingredient quantities to the requested number of servings if given.\n' +
     (params.kidFriendly
       ? '- KID-FRIENDLY: mild flavours with no strong spice or heat, familiar and fun, not too adventurous, easy for young children to eat and help prepare.\n'
       : '') +
-    (params.cuisine === 'Baking'
-      ? `- BAKING: This is a baking request.${params.bakeType ? ` Bake type: ${String(params.bakeType)}.` : ''}${params.bakeFlavor ? ` Flavour direction: ${String(params.bakeFlavor)}.` : ''} Give PRECISE measurements (include weights in grams for flour, sugar, butter and other key ingredients, not just cups), the correct oven temperature (°F) and bake time, the proper mixing method, any resting/proofing/chilling, and clear doneness cues. Set the "cuisine" field to "Baking".\n`
+    (String(params.cuisine ?? '').includes('Baking')
+      ? `- BAKING: This request includes Baking.${params.bakeType ? ` Bake type: ${String(params.bakeType)}.` : ''}${params.bakeFlavor ? ` Flavour direction: ${String(params.bakeFlavor)}.` : ''} For every recipe that is a bake, give PRECISE measurements (include weights in grams for flour, sugar, butter and other key ingredients, not just cups), the correct oven temperature (°F) and bake time, the proper mixing method, any resting/proofing/chilling, and clear doneness cues, and set that recipe's "cuisine" field to "Baking".\n`
       : '') +
-    (params.cuisine !== 'Baking' && (params.bakeType || params.bakeFlavor)
+    (!String(params.cuisine ?? '').includes('Baking') && (params.bakeType || params.bakeFlavor)
       ? `- BAKING OPTION: If you choose Baking as this recipe's cuisine${params.bakeType ? ` (bake type: ${String(params.bakeType)})` : ''}${params.bakeFlavor ? ` (flavour: ${String(params.bakeFlavor)})` : ''}, then follow baking rules: precise gram weights, correct oven temperature (°F) and bake time, proper mixing method, any resting/proofing/chilling, and clear doneness cues.\n`
       : '') +
     METHOD_RULES +

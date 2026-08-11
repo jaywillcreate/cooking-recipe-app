@@ -14,7 +14,8 @@ export const maxDuration = 60; // generation can take a while
 
 const schema = z.object({
   craving: z.string().max(600).default(''),
-  cuisine: z.string().max(30).default('Surprise me'),
+  // One cuisine, or a comma-separated multi-select ("Italian, Thai").
+  cuisine: z.string().max(400).default('Surprise me'),
   time: z.enum(['15 min', '30 min', '45 min', '1 hr+']).default('30 min'),
   skill: z.enum(['Beginner', 'Comfortable', 'Adventurous']).default('Comfortable'),
   onHand: z.string().max(400).default(''),
@@ -46,7 +47,7 @@ export const POST = route(async (req: NextRequest) => {
       params: {
         craving: b.craving || "chef's choice", cuisine: b.cuisine, timeBudget: b.time, skill: b.skill,
         ingredientsOnHand: b.onHand || 'anything', kidFriendly: b.kidFriendly,
-        ...(b.cuisine === 'Baking' ? { bakeType: b.bakeType, bakeFlavor: b.bakeFlavor } : {}),
+        ...(b.cuisine.includes('Baking') ? { bakeType: b.bakeType, bakeFlavor: b.bakeFlavor } : {}),
       },
     }, 3);
   } catch {

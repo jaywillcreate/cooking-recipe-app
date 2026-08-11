@@ -4,23 +4,24 @@ import { useSearchParams } from 'next/navigation';
 import { generateApi, cookbookApi, ApiError } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import type { Recipe } from '@/lib/types';
-import { C, CUISINES, SKILLS, TIMES, BAKE_TYPES, BAKE_FLAVORS, chipStyle } from '@/lib/tokens';
+import { C, SKILLS, TIMES, BAKE_TYPES, BAKE_FLAVORS, chipStyle } from '@/lib/tokens';
 import { Spinner } from '@/components/Spinner';
 import { PreferenceSettings } from '@/components/PreferenceSettings';
 import { RecipeRemix } from '@/components/RecipeRemix';
+import { CuisineChips } from '@/components/CuisineChips';
 
 function CreateInner() {
   const params = useSearchParams();
   const { profile } = useApp();
   const [craving, setCraving] = useState(params.get('craving') ?? '');
-  const [cuisine, setCuisine] = useState('Surprise me');
+  const [cuisines, setCuisines] = useState<string[]>([]);
   const [time, setTime] = useState<(typeof TIMES)[number]>('30 min');
   const [skill, setSkill] = useState<(typeof SKILLS)[number]>('Comfortable');
   const [onHand, setOnHand] = useState('');
   const [kidFriendly, setKidFriendly] = useState(false);
   const [bakeType, setBakeType] = useState(BAKE_TYPES[0]);
   const [bakeFlavor, setBakeFlavor] = useState(BAKE_FLAVORS[0]);
-  const isBaking = cuisine === 'Baking';
+  const isBaking = cuisines.includes('Baking');
   const [generating, setGenerating] = useState(false);
   const [variants, setVariants] = useState<Recipe[]>([]);
   const [result, setResult] = useState<Recipe | null>(null);
@@ -42,7 +43,7 @@ function CreateInner() {
     setRemixError(null);
     try {
       const { recipes } = await generateApi.create({
-        craving, cuisine, time, skill, onHand, kidFriendly,
+        craving, cuisine: cuisines.length ? cuisines.join(', ') : 'Surprise me', time, skill, onHand, kidFriendly,
         ...(isBaking ? { bakeType, bakeFlavor: bakeFlavor === 'Any' ? undefined : bakeFlavor } : {}),
       });
       setVariants(recipes);
@@ -138,14 +139,17 @@ function CreateInner() {
             style={{ ...inputBase, padding: '14px 16px', fontSize: 14.5, resize: 'vertical' }}
           />
           <div style={{ marginTop: 22 }}>
-            <div style={label}>Cuisine</div>
-            <div className="chip-scroll">
-              {['Surprise me', ...CUISINES].map((c) => (
-                <button key={c} style={chipStyle(cuisine === c, C.green, true)} onClick={() => setCuisine(c)}>
-                  {c === 'Baking' ? '🧁 Baking' : c}
-                </button>
-              ))}
+            <div style={label}>
+              Cuisines <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>(pick as many as you like)</span>
             </div>
+            <CuisineChips
+              selected={cuisines}
+              onToggle={(c) => setCuisines((cur) => (cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c]))}
+              onClear={() => setCuisines([])}
+              allLabel="✦ Surprise me"
+              activeColor={C.green}
+              favorites={profile?.cuisines ?? []}
+            />
           </div>
 
           {isBaking && (

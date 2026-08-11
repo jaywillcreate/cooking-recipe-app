@@ -4,9 +4,10 @@ import { useRouter } from 'next/navigation';
 import { recipeApi, sitesApi, dailyApi, cookbookApi, ApiError, type WebRecipeLink } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import type { Recipe } from '@/lib/types';
-import { C, CUISINES, mono, chipStyle, todayLabel, recipeImageUrl } from '@/lib/tokens';
+import { C, mono, todayLabel, recipeImageUrl } from '@/lib/tokens';
 import { RecipeCard } from '@/components/RecipeCard';
 import { Spinner } from '@/components/Spinner';
+import { CuisineChips } from '@/components/CuisineChips';
 
 const PAGE_SIZE = 8; // 2 rows × 4 columns
 
@@ -36,7 +37,7 @@ export default function DiscoverPage() {
   const [hero, setHero] = useState<Recipe | null>(null);
   const [heroSaved, setHeroSaved] = useState(false);
   const [q, setQ] = useState('');
-  const [cuisine, setCuisine] = useState('All');
+  const [cuisines, setCuisines] = useState<string[]>([]);
   const [newSite, setNewSite] = useState('');
   const [siteLoading, setSiteLoading] = useState<string | null>(null);
   const [siteError, setSiteError] = useState<string | null>(null);
@@ -70,11 +71,11 @@ export default function DiscoverPage() {
     })();
   }, [loadWeb]);
 
-  // reactive results (live search + cuisine filter); no filter → the
+  // reactive results (live search + multi-cuisine filter); no filter → the
   // personalized fresh feed
   useEffect(() => {
     clearTimeout(debounce.current);
-    if (!q.trim() && cuisine === 'All') {
+    if (!q.trim() && cuisines.length === 0) {
       setRecipes(freshRecipes);
       setPage(0);
       return;
@@ -83,14 +84,14 @@ export default function DiscoverPage() {
       const { recipes } = await recipeApi.list({
         scope: 'discover',
         q: q.trim() || undefined,
-        cuisine: cuisine !== 'All' ? cuisine : undefined,
+        cuisine: cuisines.length ? cuisines.join(',') : undefined,
       });
       // Shuffle so cuisine browsing refreshes each load; searches stay ordered.
       setRecipes(q.trim() ? recipes : shuffle(recipes));
       setPage(0);
     }, 220);
     return () => clearTimeout(debounce.current);
-  }, [q, cuisine, freshRecipes]);
+  }, [q, cuisines, freshRecipes]);
 
   async function toggleHeroSave() {
     if (!hero) return;
@@ -123,9 +124,9 @@ export default function DiscoverPage() {
 
   const resultsHeading = q.trim()
     ? `Results for “${q.trim()}”`
-    : cuisine === 'All'
+    : cuisines.length === 0
       ? 'Fresh from the kitchen'
-      : `${cuisine} recipes`;
+      : `${cuisines.join(' · ')} recipes`;
 
   const heroDesc = hero?.origin === 'daily'
     ? hero.desc
@@ -178,13 +179,18 @@ export default function DiscoverPage() {
         </button>
       </div>
 
-      {/* cuisine filters — every cuisine from Create/Daily in one scrollable row */}
-      <div className="chip-scroll" style={{ marginBottom: 22 }}>
-        {['All', ...CUISINES].map((c) => (
-          <button key={c} style={chipStyle(cuisine === c, C.dark, false)} onClick={() => { setCuisine(c); setQ(''); }}>
-            {c === 'Baking' ? '🧁 Baking' : c}
-          </button>
-        ))}
+      {/* cuisine filters — every cuisine from Create/Daily, multi-select, wrapped
+          chips with a "+N more" expander (favourites first) */}
+      <div style={{ marginBottom: 22 }}>
+        <CuisineChips
+          selected={cuisines}
+          onToggle={(c) => { setCuisines((cur) => (cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c])); setQ(''); }}
+          onClear={() => { setCuisines([]); setQ(''); }}
+          allLabel="All"
+          activeColor={C.dark}
+          favorites={profile?.cuisines ?? []}
+          small={false}
+        />
       </div>
 
       {/* results */}
@@ -195,15 +201,15 @@ export default function DiscoverPage() {
       <div style={{ fontSize: 13, color: C.muted65, lineHeight: 1.5, marginBottom: 18, maxWidth: '70ch' }}>
         {q.trim()
           ? 'Matching recipes from your personal library and the TastyEmber catalog.'
-          : cuisine !== 'All'
-            ? 'Recipes from the TastyEmber catalog and your own AI creations in this cuisine. Tap the bookmark to save one straight to your cookbook.'
+          : cuisines.length > 0
+            ? `Recipes from the TastyEmber catalog and your own AI creations in ${cuisines.length > 1 ? 'these cuisines' : 'this cuisine'}. Tap the bookmark to save one straight to your cookbook.`
             : profile?.cuisines.length
               ? `Freshly created TastyEmber recipes and live finds from around the web — personalized to your tastes (${profile.cuisines.slice(0, 4).join(', ')}${profile.cuisines.length > 4 ? '…' : ''}). Tap the bookmark to save a recipe straight to your cookbook.`
               : 'Freshly created TastyEmber recipes and live finds from around the web. Pick favourite cuisines in your profile to personalize this feed.'}
       </div>
 
       {/* live web finds — pulled fresh from recipe sites, matched to the user's tastes */}
-      {!q.trim() && cuisine === 'All' && webFinds.length > 0 && (
+      {!q.trim() && cuisines.length === 0 && webFinds.length > 0 && (
         <div style={{ margin: '0 0 24px', padding: '16px 18px 10px', background: 'rgba(47,122,77,0.06)', border: '1px solid rgba(47,122,77,0.25)', borderRadius: 14 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 14, fontWeight: 800 }}>🌐 Fresh finds from around the web</div>

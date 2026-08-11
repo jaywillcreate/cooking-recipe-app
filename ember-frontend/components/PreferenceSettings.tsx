@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/lib/store';
 import type { Profile } from '@/lib/types';
-import { C, CUISINES, DIETS, TIMES, SKILLS, GOALS, ALLERGENS, BAKE_TYPES, BAKE_FLAVORS, chipStyle } from '@/lib/tokens';
+import { C, DIETS, TIMES, SKILLS, GOALS, ALLERGENS, BAKE_TYPES, BAKE_FLAVORS, chipStyle } from '@/lib/tokens';
 import { Spinner } from './Spinner';
+import { CuisineChips } from './CuisineChips';
 
 function formatHour(h: number): string {
   const period = h < 12 ? 'AM' : 'PM';
@@ -83,11 +84,13 @@ export function PreferenceSettings({
         {show('cuisines') && (
         <div>
           <div style={sectionLabel}>Favourite cuisines</div>
-          <div className="chip-scroll" style={{ gap: 6 }}>
-            {CUISINES.map((c) => (
-              <button key={c} style={chipStyle(p.cuisines.includes(c), C.rust, true)} onClick={() => toggleArr('cuisines', c)}>{c === 'Baking' ? '🧁 Baking' : c}</button>
-            ))}
-          </div>
+          <CuisineChips
+            selected={p.cuisines}
+            onToggle={(c) => toggleArr('cuisines', c)}
+            onClear={() => void patchProfile({ cuisines: [] })}
+            activeColor={C.rust}
+            collapsedCount={8}
+          />
         </div>
         )}
         {show('baking') && p.cuisines.includes('Baking') && (
