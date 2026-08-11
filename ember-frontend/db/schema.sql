@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS daily_recipes (
 CREATE TABLE IF NOT EXISTS ai_usage (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('create','daily','web')),
+  kind TEXT NOT NULL CHECK (kind IN ('create','daily','web','variant')),
   model TEXT NOT NULL,
   input_tokens INTEGER NOT NULL DEFAULT 0,
   output_tokens INTEGER NOT NULL DEFAULT 0,
@@ -256,3 +256,8 @@ DROP TRIGGER IF EXISTS trg_users_touch ON users;
 CREATE TRIGGER trg_users_touch BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 DROP TRIGGER IF EXISTS trg_profiles_touch ON profiles;
 CREATE TRIGGER trg_profiles_touch BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+-- Existing databases predate the 'variant' ai_usage kind (secondary calls of a
+-- multi-variation create); refresh the check constraint idempotently.
+ALTER TABLE ai_usage DROP CONSTRAINT IF EXISTS ai_usage_kind_check;
+ALTER TABLE ai_usage ADD CONSTRAINT ai_usage_kind_check CHECK (kind IN ('create','daily','web','variant'));

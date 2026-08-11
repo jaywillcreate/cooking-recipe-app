@@ -1,6 +1,5 @@
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
-import { z } from 'zod';
 import { config } from '../config';
 import { logger } from '../logger';
 import { query } from '../db';
@@ -22,7 +21,9 @@ export interface PreferenceHints {
   disliked: string[];
 }
 export interface GenerateParams {
-  kind: 'create' | 'daily' | 'web';
+  // 'variant' = secondary calls of a multi-variation create; excluded from the
+  // daily quota count so one create action costs one generation.
+  kind: 'create' | 'daily' | 'web' | 'variant';
   userId?: string | null;
   profile: ProfileForPrompt;
   params: Record<string, unknown>;
@@ -47,7 +48,7 @@ const METHOD_RULES =
 const RECIPE_SHAPE =
   '{"title":"...","cuisine":"...","mins":30,"time":"30 min","difficulty":"Beginner|Comfortable|Adventurous","desc":"one enticing sentence","tags":["...","..."],"ingredients":["quantity ingredient","..."],"steps":["...","..."],"nutrition":{"cal":450,"protein":30,"carbs":40,"fat":18}}';
 
-function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>, hints?: PreferenceHints, guidance?: string, variants = 1): string {
+function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>, hints?: PreferenceHints, guidance?: string): string {
   const hintLine =
     hints && (hints.liked.length || hints.disliked.length)
       ? `Personalize using this feedback — the user has LIKED: [${hints.liked.join(', ')}]; the user has DISLIKED: [${hints.disliked.join(', ')}]. Lean toward liked styles and avoid disliked ones.\n`
@@ -77,10 +78,7 @@ function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>,
       : '') +
     METHOD_RULES +
     (guidance ? 'CURRENT CULINARY GUIDANCE (research-refreshed; also apply when writing the steps):\n' + guidance + '\n' : '') +
-    (variants > 1
-      ? `VARIATIONS: create ${variants} DISTINCT recipes for this one request — meaningfully different takes (e.g. one classic/traditional, one creative twist, one quick & streamlined), each with its own title, and every one still satisfying THIS REQUEST and every rule above.\n` +
-        `Respond with ONLY a valid JSON array of exactly ${variants} recipe objects, no markdown fences, each object exactly this shape:\n[` + RECIPE_SHAPE + ', ...]'
-      : 'Respond with ONLY valid JSON, no markdown fences, exactly this shape:\n' + RECIPE_SHAPE)
+    'Respond with ONLY valid JSON, no markdown fences, exactly this shape:\n' + RECIPE_SHAPE
   );
 }
 
@@ -90,14 +88,6 @@ function extractJson(text: string): unknown {
   const match = cleaned.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('no_json_in_response');
   return JSON.parse(match[0]);
-}
-
-function extractJsonArray(text: string): unknown {
-  const cleaned = text.replace(/```(?:json)?/gi, '');
-  const arr = cleaned.match(/\[[\s\S]*\]/);
-  if (arr) return JSON.parse(arr[0]);
-  // Model occasionally returns a single object even when asked for an array.
-  return [extractJson(cleaned)];
 }
 
 /** Core model call → JSON extract → validate → log, with one retry. */
@@ -143,21 +133,38 @@ export async function generateRecipe(input: GenerateParams): Promise<GeneratedRe
   );
 }
 
+const VARIANT_ANGLES = [
+  'a classic, traditional take on the request — the version a native cook would recognize',
+  'a creative twist — an unexpected but delicious direction that still honours the request',
+  'the quickest, most streamlined take that still delivers big flavour',
+];
+
 /**
- * One model call → several distinct takes on the same request (still one
- * ai_usage row, so a multi-variant create costs one generation of the daily
- * quota). Tolerates the model returning fewer objects than asked.
+ * Several distinct takes on the same request, generated as PARALLEL single-
+ * recipe calls. One oversized 3-recipe response would exceed the serverless
+ * 60s limit (each detailed recipe is ~2.5–4k output tokens), so instead each
+ * variant runs concurrently and finishes in single-recipe time. Only the first
+ * call logs as 'create' (quota: one create action = one generation); the rest
+ * log as 'variant'. Returns every variant that succeeded (≥1 or throws).
  */
 export async function generateRecipeVariants(input: GenerateParams, count = 3): Promise<GeneratedRecipe[]> {
   const guidance = await getCulinaryGuidance().catch(() => '');
-  const prompt = buildPrompt(input.profile, input.params, input.hints, guidance, count);
-  const variants = await runGeneration(
-    prompt,
-    input,
-    (text) => z.array(generatedRecipeSchema).min(1).parse(extractJsonArray(text)),
-    (attempt) => config.anthropicMaxTokens * count * (attempt + 1),
+  const results = await Promise.allSettled(
+    VARIANT_ANGLES.slice(0, count).map((angle, i) => {
+      const prompt = buildPrompt(
+        input.profile,
+        { ...input.params, variationAngle: `This recipe is one of ${count} distinct variations shown side by side. Make this one ${angle}. Give it a distinctive title.` },
+        input.hints,
+        guidance,
+      );
+      return runGeneration(prompt, { ...input, kind: i === 0 ? input.kind : 'variant' }, (text) =>
+        generatedRecipeSchema.parse(extractJson(text)),
+      );
+    }),
   );
-  return variants.slice(0, count);
+  const ok = results.filter((r): r is PromiseFulfilledResult<GeneratedRecipe> => r.status === 'fulfilled').map((r) => r.value);
+  if (!ok.length) throw (results[0] as PromiseRejectedResult).reason;
+  return ok;
 }
 
 export interface EditParams {
