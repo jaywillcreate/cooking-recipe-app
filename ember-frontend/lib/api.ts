@@ -87,7 +87,17 @@ export const profileApi = {
     api('/api/profile/password', { body }),
 };
 
+/** External recipe found by the live web search (links out to the source). */
+export interface WebRecipeLink {
+  title: string;
+  url: string;
+  source: string;
+  snippet: string;
+}
+
 export const recipeApi = {
+  /** Personalized "Fresh from the kitchen" feed + live web finds. */
+  fresh: () => api<{ recipes: Recipe[]; web: WebRecipeLink[] }>('/api/recipes/fresh'),
   list: (params: { scope?: string; q?: string; cuisine?: string } = {}) => {
     const qs = new URLSearchParams();
     if (params.scope) qs.set('scope', params.scope);
@@ -146,8 +156,9 @@ export const sitesApi = {
 };
 
 export const generateApi = {
+  /** One create request → up to 3 distinct recipe variations to pick from. */
   create: (body: { craving: string; cuisine: string; time: string; skill: string; onHand: string; kidFriendly?: boolean; bakeType?: string; bakeFlavor?: string; save?: boolean }) =>
-    api<{ recipe: Recipe; usage: { used: number; limit: number } }>('/api/generate', { body }),
+    api<{ recipes: Recipe[]; recipe: Recipe; usage: { used: number; limit: number } }>('/api/generate', { body }),
   quota: () => api<{ used: number; limit: number; remaining: number }>('/api/generate/quota'),
   edit: (body: { recipeText: string; instruction: string; save?: boolean }) =>
     api<{ recipe: Recipe; usage: { used: number; limit: number } }>('/api/generate/edit', { body }),

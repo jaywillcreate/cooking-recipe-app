@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { recipeApi, sitesApi, dailyApi, cookbookApi, ApiError } from '@/lib/api';
+import { recipeApi, sitesApi, dailyApi, cookbookApi, ApiError, type WebRecipeLink } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import type { Recipe } from '@/lib/types';
 import { C, CUISINES, mono, chipStyle, todayLabel, recipeImageUrl } from '@/lib/tokens';
@@ -29,6 +29,8 @@ export default function DiscoverPage() {
   const router = useRouter();
   const { profile, refreshSavedCount } = useApp();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [freshRecipes, setFreshRecipes] = useState<Recipe[]>([]);
+  const [webFinds, setWebFinds] = useState<WebRecipeLink[]>([]);
   const [webRecipes, setWebRecipes] = useState<Recipe[]>([]);
   const [sites, setSites] = useState<string[]>([]);
   const [hero, setHero] = useState<Recipe | null>(null);
@@ -48,15 +50,19 @@ export default function DiscoverPage() {
     setSites(s.sites);
   }, []);
 
-  // initial load: hero (today's daily or featured), web section
+  // initial load: hero (today's daily or featured), personalized fresh feed
+  // (recent TastyEmber creations + live web finds), followed-sites section
   useEffect(() => {
     (async () => {
       try {
-        const [daily, disc] = await Promise.all([dailyApi.today(), recipeApi.list({ scope: 'discover' })]);
-        const featured = disc.recipes.find((r) => r.title.includes('Miso Salmon')) ?? disc.recipes[0] ?? null;
+        const [daily, fresh] = await Promise.all([dailyApi.today(), recipeApi.fresh()]);
+        const featured = fresh.recipes.find((r) => r.title.includes('Miso Salmon')) ?? fresh.recipes[0] ?? null;
         const h = daily.daily ?? featured;
         setHero(h);
         setHeroSaved(h?.saved ?? false);
+        setFreshRecipes(fresh.recipes);
+        setWebFinds(fresh.web);
+        setRecipes(fresh.recipes);
         await loadWeb();
       } finally {
         setLoading(false);
@@ -64,21 +70,27 @@ export default function DiscoverPage() {
     })();
   }, [loadWeb]);
 
-  // reactive results (live search + cuisine filter)
+  // reactive results (live search + cuisine filter); no filter → the
+  // personalized fresh feed
   useEffect(() => {
     clearTimeout(debounce.current);
+    if (!q.trim() && cuisine === 'All') {
+      setRecipes(freshRecipes);
+      setPage(0);
+      return;
+    }
     debounce.current = setTimeout(async () => {
       const { recipes } = await recipeApi.list({
         scope: 'discover',
         q: q.trim() || undefined,
         cuisine: cuisine !== 'All' ? cuisine : undefined,
       });
-      // Shuffle so the library refreshes each load; searches stay ordered.
+      // Shuffle so cuisine browsing refreshes each load; searches stay ordered.
       setRecipes(q.trim() ? recipes : shuffle(recipes));
       setPage(0);
     }, 220);
     return () => clearTimeout(debounce.current);
-  }, [q, cuisine]);
+  }, [q, cuisine, freshRecipes]);
 
   async function toggleHeroSave() {
     if (!hero) return;
@@ -166,11 +178,11 @@ export default function DiscoverPage() {
         </button>
       </div>
 
-      {/* cuisine chips */}
-      <div style={{ display: 'flex', gap: 9, marginBottom: 26, flexWrap: 'wrap' }}>
-        {['All', ...CUISINES.slice(0, 7)].map((c) => (
+      {/* cuisine filters — every cuisine from Create/Daily in one scrollable row */}
+      <div className="chip-scroll" style={{ marginBottom: 22 }}>
+        {['All', ...CUISINES].map((c) => (
           <button key={c} style={chipStyle(cuisine === c, C.dark, false)} onClick={() => { setCuisine(c); setQ(''); }}>
-            {c}
+            {c === 'Baking' ? '🧁 Baking' : c}
           </button>
         ))}
       </div>
@@ -183,8 +195,37 @@ export default function DiscoverPage() {
       <div style={{ fontSize: 13, color: C.muted65, lineHeight: 1.5, marginBottom: 18, maxWidth: '70ch' }}>
         {q.trim()
           ? 'Matching recipes from your personal library and the TastyEmber catalog.'
-          : 'A hand-picked mix from the TastyEmber catalog and your own AI creations — reshuffled every visit so there’s always something new to cook. Tap the bookmark to save a recipe straight to your cookbook.'}
+          : cuisine !== 'All'
+            ? 'Recipes from the TastyEmber catalog and your own AI creations in this cuisine. Tap the bookmark to save one straight to your cookbook.'
+            : profile?.cuisines.length
+              ? `Freshly created TastyEmber recipes and live finds from around the web — personalized to your tastes (${profile.cuisines.slice(0, 4).join(', ')}${profile.cuisines.length > 4 ? '…' : ''}). Tap the bookmark to save a recipe straight to your cookbook.`
+              : 'Freshly created TastyEmber recipes and live finds from around the web. Pick favourite cuisines in your profile to personalize this feed.'}
       </div>
+
+      {/* live web finds — pulled fresh from recipe sites, matched to the user's tastes */}
+      {!q.trim() && cuisine === 'All' && webFinds.length > 0 && (
+        <div style={{ margin: '0 0 24px', padding: '16px 18px 10px', background: 'rgba(47,122,77,0.06)', border: '1px solid rgba(47,122,77,0.25)', borderRadius: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 14, fontWeight: 800 }}>🌐 Fresh finds from around the web</div>
+            <div style={{ fontFamily: mono, fontSize: 11, color: 'rgba(36,26,18,0.5)' }}>pulled live from top recipe sites, picked for your tastes</div>
+          </div>
+          <div className="web-finds">
+            {webFinds.map((w) => (
+              <a
+                key={w.url}
+                href={w.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ width: 230, display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 14px', background: C.surface, border: `1px solid ${C.line}`, borderRadius: 10, textDecoration: 'none', color: C.ink }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{w.title}</div>
+                {w.snippet && <div style={{ fontSize: 11.5, color: C.muted65, lineHeight: 1.45, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{w.snippet}</div>}
+                <div style={{ fontFamily: mono, fontSize: 10.5, color: C.green, marginTop: 'auto' }}>{w.source} ↗</div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="kitchen-grid">
         {recipes.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE).map((r) => (
           <RecipeCard key={r.id} r={r} showTags showSaveToggle />

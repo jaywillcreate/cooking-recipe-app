@@ -83,7 +83,7 @@ export function PreferenceSettings({
         {show('cuisines') && (
         <div>
           <div style={sectionLabel}>Favourite cuisines</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="chip-scroll" style={{ gap: 6 }}>
             {CUISINES.map((c) => (
               <button key={c} style={chipStyle(p.cuisines.includes(c), C.rust, true)} onClick={() => toggleArr('cuisines', c)}>{c === 'Baking' ? '🧁 Baking' : c}</button>
             ))}

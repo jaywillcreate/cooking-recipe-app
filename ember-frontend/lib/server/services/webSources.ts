@@ -76,3 +76,92 @@ export async function fetchLatestFromSite(
   });
   return { recipe, via: 'ai' };
 }
+
+// ─── Live web recipe search (Discover → "Fresh from the kitchen") ───────────
+
+export interface WebRecipeLink {
+  title: string;
+  url: string;
+  source: string;
+  snippet: string;
+}
+
+/**
+ * Curated, well-known recipe sites with reliable RSS feeds. Cuisine-tagged
+ * feeds are chosen to match the user's profile; untagged feeds are general
+ * interest and pad out the mix.
+ */
+const CURATED_FEEDS: { source: string; url: string; cuisines: string[] }[] = [
+  { source: 'smittenkitchen.com', url: 'https://smittenkitchen.com/feed/', cuisines: [] },
+  { source: 'budgetbytes.com', url: 'https://www.budgetbytes.com/feed/', cuisines: ['American'] },
+  { source: 'pinchofyum.com', url: 'https://pinchofyum.com/feed/', cuisines: [] },
+  { source: 'halfbakedharvest.com', url: 'https://www.halfbakedharvest.com/feed/', cuisines: [] },
+  { source: 'cookieandkate.com', url: 'https://cookieandkate.com/feed/', cuisines: [] },
+  { source: 'loveandlemons.com', url: 'https://www.loveandlemons.com/feed/', cuisines: [] },
+  { source: 'thewoksoflife.com', url: 'https://thewoksoflife.com/feed/', cuisines: ['Chinese'] },
+  { source: 'justonecookbook.com', url: 'https://www.justonecookbook.com/feed/', cuisines: ['Japanese'] },
+  { source: 'vegrecipesofindia.com', url: 'https://www.vegrecipesofindia.com/feed/', cuisines: ['Indian'] },
+  { source: 'mexicanplease.com', url: 'https://www.mexicanplease.com/feed/', cuisines: ['Mexican'] },
+  { source: 'themediterraneandish.com', url: 'https://www.themediterraneandish.com/feed/', cuisines: ['Mediterranean', 'Greek', 'Middle Eastern'] },
+  { source: 'koreanbapsang.com', url: 'https://www.koreanbapsang.com/feed/', cuisines: ['Korean'] },
+  { source: 'davidlebovitz.com', url: 'https://www.davidlebovitz.com/feed/', cuisines: ['French'] },
+  { source: 'sallysbakingaddiction.com', url: 'https://sallysbakingaddiction.com/feed/', cuisines: ['Baking'] },
+];
+
+// Best-effort in-memory cache (per serverless instance) so the Discover page
+// doesn't hit a dozen RSS feeds on every load.
+const webCache = new Map<string, { at: number; items: WebRecipeLink[] }>();
+const WEB_CACHE_TTL_MS = 30 * 60 * 1000;
+
+/**
+ * Live-search the web for fresh recipes personalized to the user's profile:
+ * feeds are picked by favourite cuisine, and items mentioning the cuisines or
+ * liked tastes rank first. Failures degrade to an empty list, never an error.
+ */
+export async function searchWebRecipes(cuisines: string[], liked: string[], limit = 8): Promise<WebRecipeLink[]> {
+  const key = [...cuisines].sort().join('|');
+  const hit = webCache.get(key);
+  if (hit && Date.now() - hit.at < WEB_CACHE_TTL_MS) return hit.items.slice(0, limit);
+
+  const matched = CURATED_FEEDS.filter((f) => f.cuisines.some((c) => cuisines.includes(c)));
+  const general = CURATED_FEEDS.filter((f) => f.cuisines.length === 0);
+  const feeds = [...matched.slice(0, 4), ...general.slice(0, Math.max(2, 5 - matched.length))];
+
+  const results = await Promise.allSettled(
+    feeds.map(async (f) => {
+      const feed = await rss.parseURL(f.url);
+      return (feed.items ?? [])
+        .slice(0, 4)
+        .map((item) => ({
+          title: (item.title ?? '').trim(),
+          url: item.link ?? `https://${f.source}`,
+          source: f.source,
+          snippet: (item.contentSnippet || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 160),
+        }))
+        .filter((i) => i.title);
+    }),
+  );
+  const items = results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+
+  // Rank taste matches first, keep feed recency order otherwise, and cap two
+  // items per source so one prolific blog doesn't crowd out the rest.
+  const terms = [...cuisines, ...liked].map((t) => t.toLowerCase()).filter(Boolean);
+  const score = (i: WebRecipeLink) => {
+    const hay = `${i.title} ${i.snippet}`.toLowerCase();
+    return terms.reduce((n, t) => n + (hay.includes(t) ? 1 : 0), 0) + (matched.some((f) => f.source === i.source) ? 1 : 0);
+  };
+  const ranked = items
+    .map((i, idx) => ({ i, s: score(i), idx }))
+    .sort((a, b) => b.s - a.s || a.idx - b.idx);
+  const perSource = new Map<string, number>();
+  const out: WebRecipeLink[] = [];
+  for (const { i } of ranked) {
+    const n = perSource.get(i.source) ?? 0;
+    if (n >= 2) continue;
+    perSource.set(i.source, n + 1);
+    out.push(i);
+    if (out.length >= limit) break;
+  }
+  if (out.length) webCache.set(key, { at: Date.now(), items: out });
+  return out;
+}

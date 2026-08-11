@@ -22,25 +22,71 @@ function CreateInner() {
   const [bakeFlavor, setBakeFlavor] = useState(BAKE_FLAVORS[0]);
   const isBaking = cuisine === 'Baking';
   const [generating, setGenerating] = useState(false);
+  const [variants, setVariants] = useState<Recipe[]>([]);
   const [result, setResult] = useState<Recipe | null>(null);
+  const [wasRemixed, setWasRemixed] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [remixNote, setRemixNote] = useState('');
+  const [remixing, setRemixing] = useState(false);
+  const [remixError, setRemixError] = useState<string | null>(null);
 
   async function generate() {
     setGenerating(true);
     setError(null);
+    setVariants([]);
     setResult(null);
+    setWasRemixed(false);
     setSaved(false);
+    setRemixNote('');
+    setRemixError(null);
     try {
-      const { recipe } = await generateApi.create({
+      const { recipes } = await generateApi.create({
         craving, cuisine, time, skill, onHand, kidFriendly,
         ...(isBaking ? { bakeType, bakeFlavor: bakeFlavor === 'Any' ? undefined : bakeFlavor } : {}),
       });
-      setResult(recipe);
+      setVariants(recipes);
+      if (recipes.length === 1) setResult(recipes[0]!);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Generation hiccuped — give it another try in a moment.');
     } finally {
       setGenerating(false);
+    }
+  }
+
+  function chooseVariant(v: Recipe) {
+    setResult(v);
+    setWasRemixed(false);
+    setSaved(false);
+    setRemixNote('');
+    setRemixError(null);
+  }
+
+  /** Remix the chosen output: user guidance + this exact recipe → a new variant. */
+  async function remix() {
+    if (!result || remixing) return;
+    const guidance = remixNote.trim();
+    if (guidance.length < 2) {
+      setRemixError('Tell TastyEmber what to change first — e.g. “make it spicier”.');
+      return;
+    }
+    setRemixing(true);
+    setRemixError(null);
+    try {
+      const recipeText = [
+        result.title, result.desc, '',
+        'Ingredients:', ...result.ingredients.map((ing) => `- ${ing}`), '',
+        'Method:', ...result.steps.map((s, i) => `${i + 1}. ${s}`),
+      ].join('\n').slice(0, 6000);
+      const { recipe } = await generateApi.edit({ recipeText, instruction: guidance });
+      setResult(recipe);
+      setWasRemixed(true);
+      setSaved(false);
+      setRemixNote('');
+    } catch (err) {
+      setRemixError(err instanceof ApiError ? err.message : 'Remix hiccuped — give it another try in a moment.');
+    } finally {
+      setRemixing(false);
     }
   }
 
@@ -82,7 +128,7 @@ function CreateInner() {
         <div style={{ fontSize: 14, color: C.muted, marginTop: 8 }}>TastyEmber invents a brand-new recipe for you — tuned to your profile.</div>
       </div>
 
-      {!generating && !result && (
+      {!generating && !result && variants.length === 0 && (
         <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 18, padding: '28px 30px' }}>
           <textarea
             value={craving}
@@ -93,7 +139,7 @@ function CreateInner() {
           />
           <div style={{ marginTop: 22 }}>
             <div style={label}>Cuisine</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div className="chip-scroll">
               {['Surprise me', ...CUISINES].map((c) => (
                 <button key={c} style={chipStyle(cuisine === c, C.green, true)} onClick={() => setCuisine(c)}>
                   {c === 'Baking' ? '🧁 Baking' : c}
@@ -190,7 +236,40 @@ function CreateInner() {
             <Spinner />
           </div>
           <div style={{ fontSize: 15, fontWeight: 700 }}>Consulting the flavor archives…</div>
-          <div style={{ fontSize: 12.5, color: C.muted55, marginTop: 6 }}>Inventing something new from your parameters…</div>
+          <div style={{ fontSize: 12.5, color: C.muted55, marginTop: 6 }}>Cooking up three takes on your brief…</div>
+        </div>
+      )}
+
+      {/* variation picker: one brief → 3 distinct takes, choose your favorite */}
+      {!generating && !result && variants.length > 1 && (
+        <div>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.5 }}>Pick your favorite</div>
+            <div style={{ fontSize: 13, color: C.muted65, marginTop: 6 }}>Same brief, {variants.length} different directions — choose one to see the full recipe.</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
+            {variants.map((v, i) => (
+              <div key={v.id} style={{ display: 'flex', flexDirection: 'column', background: C.surface, border: `1.5px solid ${C.line15}`, borderRadius: 16, padding: '20px 20px 18px', borderTop: `4px solid ${v.accent}` }}>
+                <div style={{ display: 'inline-block', alignSelf: 'flex-start', fontSize: 10, fontWeight: 800, letterSpacing: 1.3, textTransform: 'uppercase', color: '#fff', background: C.green, padding: '3px 9px', borderRadius: 4, marginBottom: 10 }}>
+                  Variation {i + 1} · {v.cuisine}
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: -0.4, lineHeight: 1.2 }}>{v.title}</div>
+                <div style={{ fontSize: 12.5, lineHeight: 1.55, color: C.muted65, margin: '8px 0 10px', flex: 1 }}>{v.desc}</div>
+                <div style={{ fontSize: 11.5, color: C.muted55, fontWeight: 600, marginBottom: 14 }}>{v.meta}</div>
+                <button onClick={() => chooseVariant(v)} style={{ background: C.dark, color: C.bg, fontWeight: 700, fontSize: 13, padding: '11px 18px', borderRadius: 999, border: 'none', cursor: 'pointer' }}>
+                  Choose this one →
+                </button>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
+            <button onClick={generate} style={{ background: 'none', border: `1.5px solid ${C.line22}`, fontWeight: 600, fontSize: 13, padding: '10px 20px', borderRadius: 999, cursor: 'pointer', color: C.ink }}>
+              ↻ Try another batch
+            </button>
+            <button onClick={() => setVariants([])} style={{ background: 'none', border: `1.5px solid ${C.line22}`, fontWeight: 600, fontSize: 13, padding: '10px 20px', borderRadius: 999, cursor: 'pointer', color: C.ink }}>
+              ← Edit my brief
+            </button>
+          </div>
         </div>
       )}
 
@@ -199,7 +278,7 @@ function CreateInner() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ maxWidth: '52ch' }}>
               <div style={{ display: 'inline-block', fontSize: 10.5, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: '#fff', background: C.green, padding: '4px 11px', borderRadius: 4, marginBottom: 12 }}>
-                ✦ New creation · {result.cuisine}
+                {wasRemixed ? '✎ Remixed' : '✦ New creation'} · {result.cuisine}
               </div>
               <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: -0.8, lineHeight: 1.1 }}>{result.title}</div>
               <div style={{ fontSize: 14, lineHeight: 1.6, color: C.muted65, marginTop: 10 }}>{result.desc}</div>
@@ -209,10 +288,36 @@ function CreateInner() {
               <button onClick={save} style={{ background: C.dark, color: C.bg, fontWeight: 700, fontSize: 13.5, padding: '12px 22px', borderRadius: 999, border: 'none', cursor: 'pointer' }}>
                 {saved ? '✓ Saved to cookbook' : '♡ Save to cookbook'}
               </button>
+              {variants.length > 1 && (
+                <button onClick={() => setResult(null)} style={{ background: 'none', border: `1.5px solid ${C.line22}`, fontWeight: 600, fontSize: 13, padding: '10px 20px', borderRadius: 999, cursor: 'pointer', color: C.ink }}>
+                  ← All variations
+                </button>
+              )}
               <button onClick={generate} style={{ background: 'none', border: `1.5px solid ${C.line22}`, fontWeight: 600, fontSize: 13, padding: '10px 20px', borderRadius: 999, cursor: 'pointer', color: C.ink }}>
-                ↻ Try another
+                ↻ Try another batch
               </button>
             </div>
+          </div>
+
+          {/* remix: refine THIS output with the user's guidance → a new variant */}
+          <div style={{ marginTop: 24, padding: '16px 18px', background: 'rgba(47,122,77,0.06)', border: `1px solid rgba(47,122,77,0.25)`, borderRadius: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: -0.2 }}>✎ Remix this recipe</div>
+            <div style={{ fontSize: 12, color: C.muted65, margin: '3px 0 10px' }}>
+              Tell TastyEmber how to refine this exact recipe and it&apos;ll spin up a new variant — your diet &amp; allergy settings still apply.
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <input
+                value={remixNote}
+                onChange={(e) => { setRemixNote(e.target.value); setRemixError(null); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') void remix(); }}
+                placeholder="e.g. make it spicier, swap chicken for tofu, ready in 20 minutes…"
+                style={{ ...inputBase, flex: 1, minWidth: 220, width: 'auto', padding: '11px 14px', fontSize: 13.5 }}
+              />
+              <button onClick={remix} disabled={remixing} style={{ background: C.green, color: '#fff', fontWeight: 800, fontSize: 13.5, padding: '11px 22px', borderRadius: 999, border: 'none', cursor: remixing ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, flex: 'none' }}>
+                {remixing && <Spinner size={14} color="#fff" />}✎ Remix
+              </button>
+            </div>
+            {remixError && <div style={{ marginTop: 8, fontSize: 12.5, color: C.error, fontWeight: 600 }}>{remixError}</div>}
           </div>
           <div className="result-grid" style={{ marginTop: 26 }}>
             <div>
@@ -243,7 +348,7 @@ function CreateInner() {
       <RecipeRemix />
 
       {/* Mobile-only sticky CTA — always visible while filling out the form */}
-      {!generating && !result && (
+      {!generating && !result && variants.length === 0 && (
         <div className="create-sticky-cta">
           <button onClick={generate} style={{ width: '100%', background: C.rust, color: '#fff', fontWeight: 800, fontSize: 16, padding: '15px', borderRadius: 999, border: 'none', cursor: 'pointer' }}>
             ✦ Create my recipe

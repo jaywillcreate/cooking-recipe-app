@@ -3,7 +3,7 @@ import { route, requireUser, readBody, json, HttpError } from '@/lib/server/http
 import { query, queryOne } from '@/lib/server/db';
 import { assertUnderDailyLimit, generationsUsedToday } from '@/lib/server/services/usage';
 import { assertRateLimit } from '@/lib/server/services/rateLimit';
-import { generateRecipe, type ProfileForPrompt } from '@/lib/server/services/ai';
+import { generateRecipeVariants, type ProfileForPrompt } from '@/lib/server/services/ai';
 import { buildPreferenceHints, combineAllergies } from '@/lib/server/services/personalization';
 import { insertGeneratedRecipe, serializeRecipe } from '@/lib/server/services/recipes';
 import { config } from '@/lib/server/config';
@@ -38,21 +38,24 @@ export const POST = route(async (req: NextRequest) => {
   const hints = await buildPreferenceHints(u.id);
   const b = await readBody(req, schema);
 
+  // One model call → 3 distinct takes on the brief (counts once against quota).
   let generated;
   try {
-    generated = await generateRecipe({
+    generated = await generateRecipeVariants({
       kind: 'create', userId: u.id, profile, hints,
       params: {
         craving: b.craving || "chef's choice", cuisine: b.cuisine, timeBudget: b.time, skill: b.skill,
         ingredientsOnHand: b.onHand || 'anything', kidFriendly: b.kidFriendly,
         ...(b.cuisine === 'Baking' ? { bakeType: b.bakeType, bakeFlavor: b.bakeFlavor } : {}),
       },
-    });
+    }, 3);
   } catch {
     throw new HttpError(502, 'Generation hiccuped — give it another try in a moment.', 'generation_failed');
   }
 
-  const row = await insertGeneratedRecipe(u.id, 'ai', generated);
-  if (b.save) await query(`INSERT INTO saves (user_id, recipe_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [u.id, row.id]);
-  return json({ recipe: serializeRecipe(row, { saved: b.save }), usage: { used: await generationsUsedToday(u.id), limit: config.genDailyLimit } }, 201);
+  const rows = [];
+  for (const g of generated) rows.push(await insertGeneratedRecipe(u.id, 'ai', g));
+  if (b.save && rows[0]) await query(`INSERT INTO saves (user_id, recipe_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [u.id, rows[0].id]);
+  const recipes = rows.map((row, i) => serializeRecipe(row, { saved: b.save && i === 0 }));
+  return json({ recipes, recipe: recipes[0], usage: { used: await generationsUsedToday(u.id), limit: config.genDailyLimit } }, 201);
 });

@@ -1,5 +1,6 @@
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
+import { z } from 'zod';
 import { config } from '../config';
 import { logger } from '../logger';
 import { query } from '../db';
@@ -43,7 +44,10 @@ const METHOD_RULES =
   '- Steps must be self-contained and specific enough that a nervous beginner could follow them; include visual descriptions of what the food looks like at each stage.\n' +
   '- LENGTH: at most 12 steps, each under 55 words. Be complete but economical — cues and temps, not prose.\n';
 
-function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>, hints?: PreferenceHints, guidance?: string): string {
+const RECIPE_SHAPE =
+  '{"title":"...","cuisine":"...","mins":30,"time":"30 min","difficulty":"Beginner|Comfortable|Adventurous","desc":"one enticing sentence","tags":["...","..."],"ingredients":["quantity ingredient","..."],"steps":["...","..."],"nutrition":{"cal":450,"protein":30,"carbs":40,"fat":18}}';
+
+function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>, hints?: PreferenceHints, guidance?: string, variants = 1): string {
   const hintLine =
     hints && (hints.liked.length || hints.disliked.length)
       ? `Personalize using this feedback — the user has LIKED: [${hints.liked.join(', ')}]; the user has DISLIKED: [${hints.disliked.join(', ')}]. Lean toward liked styles and avoid disliked ones.\n`
@@ -73,8 +77,10 @@ function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>,
       : '') +
     METHOD_RULES +
     (guidance ? 'CURRENT CULINARY GUIDANCE (research-refreshed; also apply when writing the steps):\n' + guidance + '\n' : '') +
-    'Respond with ONLY valid JSON, no markdown fences, exactly this shape:\n' +
-    '{"title":"...","cuisine":"...","mins":30,"time":"30 min","difficulty":"Beginner|Comfortable|Adventurous","desc":"one enticing sentence","tags":["...","..."],"ingredients":["quantity ingredient","..."],"steps":["...","..."],"nutrition":{"cal":450,"protein":30,"carbs":40,"fat":18}}'
+    (variants > 1
+      ? `VARIATIONS: create ${variants} DISTINCT recipes for this one request — meaningfully different takes (e.g. one classic/traditional, one creative twist, one quick & streamlined), each with its own title, and every one still satisfying THIS REQUEST and every rule above.\n` +
+        `Respond with ONLY a valid JSON array of exactly ${variants} recipe objects, no markdown fences, each object exactly this shape:\n[` + RECIPE_SHAPE + ', ...]'
+      : 'Respond with ONLY valid JSON, no markdown fences, exactly this shape:\n' + RECIPE_SHAPE)
   );
 }
 
@@ -86,27 +92,40 @@ function extractJson(text: string): unknown {
   return JSON.parse(match[0]);
 }
 
+function extractJsonArray(text: string): unknown {
+  const cleaned = text.replace(/```(?:json)?/gi, '');
+  const arr = cleaned.match(/\[[\s\S]*\]/);
+  if (arr) return JSON.parse(arr[0]);
+  // Model occasionally returns a single object even when asked for an array.
+  return [extractJson(cleaned)];
+}
+
 /** Core model call → JSON extract → validate → log, with one retry. */
-async function runGeneration(prompt: string, input: GenerateParams): Promise<GeneratedRecipe> {
+async function runGeneration<T>(
+  prompt: string,
+  input: GenerateParams,
+  parse: (text: string) => T,
+  // Detailed method steps can be long; the retry gets double the budget so a
+  // response truncated at max_tokens (→ unparseable JSON) succeeds on pass 2.
+  maxTokensFor: (attempt: number) => number = (attempt) => config.anthropicMaxTokens * (attempt + 1),
+): Promise<T> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     let inTok = 0;
     let outTok = 0;
     try {
-      // Detailed method steps can be long; give the retry double the budget so a
-      // response truncated at max_tokens (→ unparseable JSON) succeeds on pass 2.
       const msg = await client().messages.create({
         model: config.anthropicModel,
-        max_tokens: config.anthropicMaxTokens * (attempt + 1),
+        max_tokens: maxTokensFor(attempt),
         messages: [{ role: 'user', content: prompt }],
       });
       inTok = msg.usage.input_tokens;
       outTok = msg.usage.output_tokens;
       const text = msg.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('');
       if (msg.stop_reason === 'max_tokens') logger.warn({ attempt, outTok }, 'Recipe generation hit max_tokens — response truncated');
-      const recipe = generatedRecipeSchema.parse(extractJson(text));
+      const parsed = parse(text);
       await logUsage(input, inTok, outTok, true, null);
-      return recipe;
+      return parsed;
     } catch (err) {
       lastErr = err;
       await logUsage(input, inTok, outTok, false, (err as Error).message);
@@ -119,11 +138,27 @@ async function runGeneration(prompt: string, input: GenerateParams): Promise<Gen
 export async function generateRecipe(input: GenerateParams): Promise<GeneratedRecipe> {
   // Latest agent-researched guidance (cached; empty string until first refresh).
   const guidance = await getCulinaryGuidance().catch(() => '');
-  return runGeneration(buildPrompt(input.profile, input.params, input.hints, guidance), input);
+  return runGeneration(buildPrompt(input.profile, input.params, input.hints, guidance), input, (text) =>
+    generatedRecipeSchema.parse(extractJson(text)),
+  );
 }
 
-const RECIPE_SHAPE =
-  '{"title":"...","cuisine":"...","mins":30,"time":"30 min","difficulty":"Beginner|Comfortable|Adventurous","desc":"one enticing sentence","tags":["...","..."],"ingredients":["quantity ingredient","..."],"steps":["...","..."],"nutrition":{"cal":450,"protein":30,"carbs":40,"fat":18}}';
+/**
+ * One model call → several distinct takes on the same request (still one
+ * ai_usage row, so a multi-variant create costs one generation of the daily
+ * quota). Tolerates the model returning fewer objects than asked.
+ */
+export async function generateRecipeVariants(input: GenerateParams, count = 3): Promise<GeneratedRecipe[]> {
+  const guidance = await getCulinaryGuidance().catch(() => '');
+  const prompt = buildPrompt(input.profile, input.params, input.hints, guidance, count);
+  const variants = await runGeneration(
+    prompt,
+    input,
+    (text) => z.array(generatedRecipeSchema).min(1).parse(extractJsonArray(text)),
+    (attempt) => config.anthropicMaxTokens * count * (attempt + 1),
+  );
+  return variants.slice(0, count);
+}
 
 export interface EditParams {
   userId?: string | null;
@@ -143,7 +178,9 @@ export async function editRecipe(input: EditParams): Promise<GeneratedRecipe> {
     'Apply the requested change while keeping the spirit of the original. Respect all dietary restrictions and allergies strictly. If the original is vague or incomplete, fill in sensible details.\n' +
     'Return the COMPLETE revised recipe as ONLY valid JSON, no markdown fences, exactly this shape:\n' +
     RECIPE_SHAPE;
-  return runGeneration(prompt, { kind: 'create', userId: input.userId, profile: input.profile, params: {}, hints: input.hints });
+  return runGeneration(prompt, { kind: 'create', userId: input.userId, profile: input.profile, params: {}, hints: input.hints }, (text) =>
+    generatedRecipeSchema.parse(extractJson(text)),
+  );
 }
 
 async function logUsage(input: GenerateParams, inTok: number, outTok: number, success: boolean, error: string | null) {
