@@ -61,16 +61,6 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS allergens TEXT[] NOT NULL DEFAULT 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bake_type TEXT NOT NULL DEFAULT '';
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bake_flavor TEXT NOT NULL DEFAULT '';
 
--- Thumbs up/down on recipes → personalizes future AI generations.
-CREATE TABLE IF NOT EXISTS recipe_feedback (
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-  vote SMALLINT NOT NULL CHECK (vote IN (-1, 1)),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (user_id, recipe_id)
-);
-CREATE INDEX IF NOT EXISTS idx_feedback_user ON recipe_feedback(user_id);
-
 CREATE TABLE IF NOT EXISTS recipes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -97,6 +87,16 @@ CREATE INDEX IF NOT EXISTS idx_recipes_source ON recipes(source);
 -- (Full-text search runs on the query's to_tsvector/ILIKE expression directly;
 --  no functional GIN index — Prisma Postgres rejects it as non-IMMUTABLE, and
 --  it isn't needed at this scale.)
+
+-- Thumbs up/down on recipes → personalizes future AI generations.
+CREATE TABLE IF NOT EXISTS recipe_feedback (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  vote SMALLINT NOT NULL CHECK (vote IN (-1, 1)),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, recipe_id)
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_user ON recipe_feedback(user_id);
 
 CREATE TABLE IF NOT EXISTS saves (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -261,3 +261,56 @@ CREATE TRIGGER trg_profiles_touch BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE
 -- multi-variation create); refresh the check constraint idempotently.
 ALTER TABLE ai_usage DROP CONSTRAINT IF EXISTS ai_usage_kind_check;
 ALTER TABLE ai_usage ADD CONSTRAINT ai_usage_kind_check CHECK (kind IN ('create','daily','web','variant'));
+
+-- ─── Profile dashboard: nutrition tracker, meal plan, Google Calendar ───────
+-- Also created lazily by ensureDashboardTables() in lib/server/db.ts so a
+-- Vercel push works before `npm run migrate` is run.
+
+-- Daily macro targets shown against the nutrition tracker's logged totals.
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_calories INTEGER NOT NULL DEFAULT 2000;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_protein INTEGER NOT NULL DEFAULT 100;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_carbs INTEGER NOT NULL DEFAULT 250;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_fat INTEGER NOT NULL DEFAULT 70;
+
+-- Nutrition tracker: what the user actually ate, one row per logged item.
+CREATE TABLE IF NOT EXISTS nutrition_logs (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  for_date DATE NOT NULL,
+  meal TEXT NOT NULL DEFAULT 'dinner' CHECK (meal IN ('breakfast','lunch','dinner','snack')),
+  recipe_id UUID REFERENCES recipes(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  cal INTEGER NOT NULL DEFAULT 0,
+  protein INTEGER NOT NULL DEFAULT 0,
+  carbs INTEGER NOT NULL DEFAULT 0,
+  fat INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_nutrition_user_date ON nutrition_logs(user_id, for_date);
+
+-- Meal plan calendar: one entry per user/date/slot, free-text or a recipe.
+CREATE TABLE IF NOT EXISTS meal_plans (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  plan_date DATE NOT NULL,
+  slot TEXT NOT NULL CHECK (slot IN ('breakfast','lunch','dinner','snack')),
+  recipe_id UUID REFERENCES recipes(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  gcal_event_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, plan_date, slot)
+);
+CREATE INDEX IF NOT EXISTS idx_meal_plans_user_date ON meal_plans(user_id, plan_date);
+
+-- Google Calendar connection — separate from Google *login*: that flow is
+-- access_type=online and never stores tokens. This one keeps the offline
+-- refresh token so we can insert meal-plan events later.
+CREATE TABLE IF NOT EXISTS google_calendar_connections (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  google_email TEXT NOT NULL DEFAULT '',
+  refresh_token TEXT NOT NULL,
+  access_token TEXT,
+  access_expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

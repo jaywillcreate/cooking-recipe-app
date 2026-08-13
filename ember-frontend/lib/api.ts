@@ -1,4 +1,4 @@
-import type { Collection, Profile, Recipe, User } from './types';
+import type { CalendarStatus, Collection, Macros, MealPlanEntry, MealSlot, NutritionEntry, Profile, Recipe, User } from './types';
 
 // Same-origin by default now that the API lives in this Next.js app (relative
 // URLs → no CORS, refresh cookie is first-party). Override only for split hosting.
@@ -93,7 +93,30 @@ export interface WebRecipeLink {
   url: string;
   source: string;
   snippet: string;
+  image?: string;
 }
+
+export const nutritionApi = {
+  day: (date: string) =>
+    api<{ entries: NutritionEntry[]; totals: Macros; targets: Macros }>(`/api/nutrition?date=${date}`),
+  add: (body: { date: string; meal: MealSlot; name: string; recipeId?: string } & Partial<Macros>) =>
+    api<{ entry: NutritionEntry }>('/api/nutrition', { body }),
+  remove: (id: number) => api(`/api/nutrition/${id}`, { method: 'DELETE' }),
+};
+
+export const mealPlanApi = {
+  range: (start: string, end: string) => api<{ entries: MealPlanEntry[] }>(`/api/meal-plan?start=${start}&end=${end}`),
+  upsert: (body: { date: string; slot: MealSlot; recipeId?: string | null; title?: string; notes?: string }) =>
+    api<{ entry: MealPlanEntry }>('/api/meal-plan', { body }),
+  remove: (id: string) => api(`/api/meal-plan/${id}`, { method: 'DELETE' }),
+  syncToCalendar: (id: string) => api<{ synced: boolean; htmlLink: string }>(`/api/meal-plan/${id}/calendar`, { method: 'POST' }),
+};
+
+export const calendarApi = {
+  status: () => api<CalendarStatus>('/api/integrations/google-calendar'),
+  startConnect: () => api<{ url: string }>('/api/integrations/google-calendar/start'),
+  disconnect: () => api('/api/integrations/google-calendar', { method: 'DELETE' }),
+};
 
 export const recipeApi = {
   /** Personalized "Fresh from the kitchen" feed + live web finds. */

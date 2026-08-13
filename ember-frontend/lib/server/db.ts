@@ -77,6 +77,63 @@ export function ensureBakingColumns(): Promise<void> {
   return bakingColsEnsured;
 }
 
+/**
+ * Ensure the profile-dashboard schema (nutrition targets + logs, meal plans,
+ * Google Calendar connections) exists — same lazy, once-per-warm-instance
+ * pattern as ensureBakingColumns, so a Vercel push works before `npm run
+ * migrate`. Keep in sync with db/schema.sql.
+ */
+let dashboardEnsured: Promise<void> | null = null;
+export function ensureDashboardTables(): Promise<void> {
+  if (!dashboardEnsured) {
+    dashboardEnsured = (async () => {
+      await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_calories INTEGER NOT NULL DEFAULT 2000`);
+      await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_protein INTEGER NOT NULL DEFAULT 100`);
+      await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_carbs INTEGER NOT NULL DEFAULT 250`);
+      await query(`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_fat INTEGER NOT NULL DEFAULT 70`);
+      await query(`CREATE TABLE IF NOT EXISTS nutrition_logs (
+        id BIGSERIAL PRIMARY KEY,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        for_date DATE NOT NULL,
+        meal TEXT NOT NULL DEFAULT 'dinner' CHECK (meal IN ('breakfast','lunch','dinner','snack')),
+        recipe_id UUID REFERENCES recipes(id) ON DELETE SET NULL,
+        name TEXT NOT NULL,
+        cal INTEGER NOT NULL DEFAULT 0,
+        protein INTEGER NOT NULL DEFAULT 0,
+        carbs INTEGER NOT NULL DEFAULT 0,
+        fat INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_nutrition_user_date ON nutrition_logs(user_id, for_date)`);
+      await query(`CREATE TABLE IF NOT EXISTS meal_plans (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        plan_date DATE NOT NULL,
+        slot TEXT NOT NULL CHECK (slot IN ('breakfast','lunch','dinner','snack')),
+        recipe_id UUID REFERENCES recipes(id) ON DELETE CASCADE,
+        title TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT '',
+        gcal_event_id TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (user_id, plan_date, slot)
+      )`);
+      await query(`CREATE INDEX IF NOT EXISTS idx_meal_plans_user_date ON meal_plans(user_id, plan_date)`);
+      await query(`CREATE TABLE IF NOT EXISTS google_calendar_connections (
+        user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        google_email TEXT NOT NULL DEFAULT '',
+        refresh_token TEXT NOT NULL,
+        access_token TEXT,
+        access_expires_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )`);
+    })().catch((err) => {
+      dashboardEnsured = null; // allow a retry on the next call
+      throw err;
+    });
+  }
+  return dashboardEnsured;
+}
+
 export async function tx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await getPool().connect();
   try {

@@ -8,7 +8,16 @@ import { badRequest } from '../http';
 import { generateRecipe, type ProfileForPrompt } from './ai';
 import type { GeneratedRecipe } from '../recipeSchema';
 
-const rss = new RssParser({ timeout: 8000 });
+const rss = new RssParser({
+  timeout: 8000,
+  customFields: {
+    item: [
+      ['media:content', 'mediaContent'],
+      ['media:thumbnail', 'mediaThumbnail'],
+      ['content:encoded', 'contentEncoded'],
+    ],
+  },
+});
 
 export function normalizeDomain(input: string): string {
   const domain = input.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]!;
@@ -84,6 +93,23 @@ export interface WebRecipeLink {
   url: string;
   source: string;
   snippet: string;
+  image?: string;
+}
+
+/** Best-effort thumbnail from an RSS item: media tags, enclosure, or the first inline <img>. */
+function itemImage(item: Record<string, unknown>): string | undefined {
+  const url = (v: unknown): string | undefined =>
+    typeof v === 'string' && /^https?:\/\//.test(v) ? v : undefined;
+  const mediaUrl = (v: unknown): string | undefined => {
+    const first = Array.isArray(v) ? v[0] : v;
+    return url((first as { $?: { url?: unknown } } | undefined)?.$?.url);
+  };
+  const enclosure = item.enclosure as { url?: unknown; type?: unknown } | undefined;
+  const enclosureUrl =
+    enclosure && (!enclosure.type || String(enclosure.type).startsWith('image/')) ? url(enclosure.url) : undefined;
+  const html = `${typeof item.contentEncoded === 'string' ? item.contentEncoded : ''}${typeof item.content === 'string' ? item.content : ''}`;
+  const inline = url(/<img[^>]+src=["']([^"']+)["']/i.exec(html)?.[1]);
+  return mediaUrl(item.mediaContent) ?? mediaUrl(item.mediaThumbnail) ?? enclosureUrl ?? inline;
 }
 
 /**
@@ -137,6 +163,7 @@ export async function searchWebRecipes(cuisines: string[], liked: string[], limi
           url: item.link ?? `https://${f.source}`,
           source: f.source,
           snippet: (item.contentSnippet || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 160),
+          image: itemImage(item as unknown as Record<string, unknown>),
         }))
         .filter((i) => i.title);
     }),

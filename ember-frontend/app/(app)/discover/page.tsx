@@ -208,27 +208,67 @@ export default function DiscoverPage() {
               : 'Freshly created TastyEmber recipes and live finds from around the web. Pick favourite cuisines in your profile to personalize this feed.'}
       </div>
 
-      {/* live web finds — pulled fresh from recipe sites, matched to the user's tastes */}
+      {/* Fresh Sparks — live editorial picks from the web's best kitchens,
+          matched to the user's tastes. One featured card + a supporting grid. */}
       {!q.trim() && cuisines.length === 0 && webFinds.length > 0 && (
-        <div style={{ margin: '0 0 24px', padding: '16px 18px 10px', background: 'rgba(47,122,77,0.06)', border: '1px solid rgba(47,122,77,0.25)', borderRadius: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 14, fontWeight: 800 }}>🌐 Fresh finds from around the web</div>
-            <div style={{ fontFamily: mono, fontSize: 11, color: 'rgba(36,26,18,0.5)' }}>pulled live from top recipe sites, picked for your tastes</div>
+        <div style={{ margin: '0 0 28px', padding: '20px 20px 18px', background: C.surface, border: `1px solid ${C.line}`, borderRadius: 16, boxShadow: '0 1px 3px rgba(36,26,18,0.04)' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.4 }}>
+              ✨ Fresh Sparks
+            </div>
+            <div style={{ fontFamily: mono, fontSize: 11, color: 'rgba(36,26,18,0.5)' }}>
+              kindling from the web’s best kitchens — picked for your tastes
+            </div>
+            <div style={{ fontFamily: mono, fontSize: 10.5, color: C.muted55, marginLeft: 'auto' }}>refreshes every 30 min</div>
           </div>
-          <div className="web-finds">
-            {webFinds.map((w) => (
-              <a
-                key={w.url}
-                href={w.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ width: 230, display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 14px', background: C.surface, border: `1px solid ${C.line}`, borderRadius: 10, textDecoration: 'none', color: C.ink }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>{w.title}</div>
-                {w.snippet && <div style={{ fontSize: 11.5, color: C.muted65, lineHeight: 1.45, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{w.snippet}</div>}
-                <div style={{ fontFamily: mono, fontSize: 10.5, color: C.green, marginTop: 'auto' }}>{w.source} ↗</div>
-              </a>
-            ))}
+          <div className="spark-grid">
+            {webFinds.slice(0, 9).map((w, i) => {
+              const featured = i === 0;
+              return (
+                <a
+                  key={w.url}
+                  href={w.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`spark-card ember-card${featured ? ' featured' : ''}`}
+                  style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 12, overflow: 'hidden', color: C.ink }}
+                >
+                  <div
+                    className="spark-thumb"
+                    style={{
+                      background: w.image
+                        ? `#e9dfcc url("${w.image}") center/cover no-repeat`
+                        : 'linear-gradient(135deg, rgba(196,85,45,0.16), rgba(232,161,60,0.22))',
+                    }}
+                  >
+                    {!w.image && <span style={{ fontSize: featured ? 34 : 24 }}>🍳</span>}
+                  </div>
+                  <div className="spark-body">
+                    <div className="spark-title" style={{ fontSize: featured ? 16.5 : 13, fontWeight: 800, lineHeight: 1.25, letterSpacing: featured ? -0.3 : 0 }}>
+                      {w.title}
+                    </div>
+                    {w.snippet && (
+                      <div className={featured ? 'spark-snippet featured' : 'spark-snippet'} style={{ fontSize: featured ? 12.5 : 11.5, color: C.muted65, lineHeight: 1.5 }}>
+                        {w.snippet}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto', paddingTop: 6 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(w.source)}&sz=32`}
+                        alt=""
+                        width={14}
+                        height={14}
+                        style={{ borderRadius: 4, flex: 'none' }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <span style={{ fontFamily: mono, fontSize: 10.5, color: C.green, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.source}</span>
+                      <span style={{ fontFamily: mono, fontSize: 10.5, color: C.muted55, flex: 'none' }}>↗</span>
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
           </div>
         </div>
       )}

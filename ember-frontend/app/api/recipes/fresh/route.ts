@@ -35,7 +35,9 @@ export const GET = route(async (req: NextRequest) => {
         LIMIT 32`,
       [u.id, cuisines, hints.liked, hints.disliked],
     ),
-    searchWebRecipes(cuisines, hints.liked).catch(() => []),
+    // 9 = one featured (2×2) + eight compact cards, a perfectly full Fresh
+    // Sparks grid at 4 columns.
+    searchWebRecipes(cuisines, hints.liked, 9).catch(() => []),
   ]);
 
   return json({

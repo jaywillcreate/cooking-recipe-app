@@ -46,7 +46,47 @@ export interface Profile {
   allergens: string[];
   bakeType: string;
   bakeFlavor: string;
+  targetCalories: number;
+  targetProtein: number;
+  targetCarbs: number;
+  targetFat: number;
   hasPassword: boolean;
+}
+
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+export interface Macros {
+  cal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+/** One logged item in the nutrition tracker. */
+export interface NutritionEntry extends Macros {
+  id: number;
+  date: string; // YYYY-MM-DD
+  meal: MealSlot;
+  recipeId: string | null;
+  name: string;
+}
+
+/** One planned meal on the calendar (free-text or a saved recipe). */
+export interface MealPlanEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  slot: MealSlot;
+  recipeId: string | null;
+  title: string;
+  notes: string;
+  synced: boolean; // pushed to Google Calendar
+}
+
+export interface CalendarStatus {
+  configured: boolean;
+  connected: boolean;
+  email: string | null;
+  connectedAt: string | null;
 }
 
 export interface Collection {
