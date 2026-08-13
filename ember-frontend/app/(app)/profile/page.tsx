@@ -2,13 +2,13 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/lib/store';
-import { profileApi, calendarApi, ApiError } from '@/lib/api';
+import { profileApi, calendarApi, nutritionApi, mealPlanApi, ApiError } from '@/lib/api';
 import type { CalendarStatus, Profile } from '@/lib/types';
 import { C, mono, CUISINES, DIETS, SKILLS, TIMES, GOALS, chipStyle } from '@/lib/tokens';
 import { ImageUpload } from '@/components/ImageUpload';
 import { PreferenceSettings } from '@/components/PreferenceSettings';
-import { NutritionTracker } from '@/components/NutritionTracker';
-import { MealPlanCalendar } from '@/components/MealPlanCalendar';
+import { NutritionTracker, toYMD, addDays } from '@/components/NutritionTracker';
+import { MealPlanCalendar, weekStart } from '@/components/MealPlanCalendar';
 import { Spinner } from '@/components/Spinner';
 
 type Section = 'account' | 'preferences' | 'nutrition' | 'mealplan' | 'connections';
@@ -47,8 +47,25 @@ function ProfileInner() {
 function Dashboard() {
   const router = useRouter();
   const params = useSearchParams();
-  const { profile, patchProfile, logout } = useApp();
+  const { profile, patchProfile, logout, savedCount, refreshSavedCount } = useApp();
   const p = profile!;
+
+  // Hero stats — today's intake, this week's plan, cookbook size.
+  const [todayTotals, setTodayTotals] = useState<{ cal: number; protein: number } | null>(null);
+  const [plannedCount, setPlannedCount] = useState<number | null>(null);
+  useEffect(() => {
+    nutritionApi
+      .day(toYMD(new Date()))
+      .then((r) => setTodayTotals({ cal: r.totals.cal, protein: r.totals.protein }))
+      .catch(() => {});
+    const ws = weekStart(new Date());
+    mealPlanApi
+      .range(toYMD(ws), toYMD(addDays(ws, 6)))
+      .then((r) => setPlannedCount(r.entries.length))
+      .catch(() => {});
+    void refreshSavedCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const initialSection = ((): Section => {
     if (typeof window !== 'undefined') {
@@ -112,27 +129,81 @@ function Dashboard() {
     }
   }
 
+  const firstName = p.name.trim().split(/\s+/)[0] || 'there';
+  const calPct = p.targetCalories > 0 && todayTotals ? Math.round((todayTotals.cal / p.targetCalories) * 100) : 0;
+  const cheer =
+    !todayTotals || todayTotals.cal === 0
+      ? 'A fresh day — log your first meal to get the bars moving.'
+      : calPct <= 55
+        ? `${calPct}% of today’s calorie target — plenty of room left. 🍳`
+        : calPct <= 105
+          ? `${calPct}% of today’s calorie target — right on track, keep it up! 🔥`
+          : `${calPct}% of today’s calorie target — a lighter plate tomorrow evens it out.`;
+
+  const heroTiles: { label: string; big: string; unit: string; sub: string; tint: string; pct?: number; barColor?: string }[] = [
+    {
+      label: 'Calories today', big: String(todayTotals?.cal ?? '–'), unit: 'kcal', sub: `of ${p.targetCalories} target`,
+      tint: 'rgba(196,85,45,0.09)', pct: todayTotals ? Math.min(100, calPct) : 0, barColor: C.rust,
+    },
+    {
+      label: 'Protein today', big: String(todayTotals?.protein ?? '–'), unit: 'g', sub: `of ${p.targetProtein} g target`,
+      tint: 'rgba(47,122,77,0.10)', pct: todayTotals && p.targetProtein > 0 ? Math.min(100, Math.round((todayTotals.protein / p.targetProtein) * 100)) : 0, barColor: C.green,
+    },
+    {
+      label: 'Planned this week', big: String(plannedCount ?? '–'), unit: plannedCount === 1 ? 'meal' : 'meals',
+      sub: 'on your meal plan', tint: 'rgba(232,161,60,0.14)',
+    },
+    {
+      label: 'Cookbook', big: String(savedCount), unit: savedCount === 1 ? 'recipe' : 'recipes',
+      sub: 'saved to your shelf', tint: 'rgba(36,26,18,0.05)',
+    },
+  ];
+
   return (
     <div className="ember-wrap narrow">
-      {/* header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 26, flexWrap: 'wrap' }}>
-        <div style={{ width: 64, height: 64, flex: 'none', borderRadius: '50%', overflow: 'hidden', border: `2px solid ${C.line15}`, background: C.surface }}>
-          <ImageUpload
-            target={{ kind: 'avatar' }}
-            shape="circle"
-            height={64}
-            currentUrl={p.avatarUrl}
-            placeholder="+"
-            onUploaded={(url) => useApp.setState({ profile: { ...p, avatarUrl: url } })}
-          />
-        </div>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.6, lineHeight: 1.1 }}>{p.name || 'Your profile'}</div>
-          <div style={{ fontFamily: mono, fontSize: 12, color: C.muted65, marginTop: 4 }}>{p.email}</div>
-        </div>
-        <button onClick={() => { void logout(); router.replace('/login'); }} style={{ background: 'none', border: `1.5px solid ${C.line22}`, borderRadius: 999, color: C.muted75, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', padding: '9px 18px' }}>
+      {/* hero — greeting + live stat tiles */}
+      <div style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 24, padding: '26px 28px 24px', marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+          <div style={{ width: 72, height: 72, flex: 'none', borderRadius: '50%', overflow: 'hidden', border: `2px solid ${C.line15}`, background: C.bg }}>
+            <ImageUpload
+              target={{ kind: 'avatar' }}
+              shape="circle"
+              height={72}
+              currentUrl={p.avatarUrl}
+              placeholder="+"
+              onUploaded={(url) => useApp.setState({ profile: { ...p, avatarUrl: url } })}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: -0.8, lineHeight: 1.1 }}>
+              Hello, {firstName} <span aria-hidden>👋</span>
+            </div>
+            <div style={{ fontFamily: mono, fontSize: 11.5, color: C.muted65, marginTop: 5 }}>{p.email}</div>
+          </div>
+          <button onClick={() => { void logout(); router.replace('/login'); }} style={{ background: 'none', border: `1.5px solid ${C.line22}`, borderRadius: 999, color: C.muted75, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', padding: '9px 18px', flex: 'none' }}>
           Sign out
-        </button>
+          </button>
+        </div>
+
+        <div className="macro-grid" style={{ marginTop: 20 }}>
+          {heroTiles.map((t) => (
+            <div key={t.label} style={{ background: t.tint, borderRadius: 18, padding: '15px 16px 14px' }}>
+              <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.muted55 }}>{t.label}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginTop: 6 }}>
+                <span style={{ fontSize: 30, fontWeight: 800, letterSpacing: -1.2, lineHeight: 1 }}>{t.big}</span>
+                <span style={{ fontFamily: mono, fontSize: 11, color: C.muted65 }}>{t.unit}</span>
+              </div>
+              <div style={{ fontSize: 11, color: C.muted55, marginTop: 4 }}>{t.sub}</div>
+              {t.pct !== undefined && (
+                <div style={{ height: 6, borderRadius: 99, background: 'rgba(36,26,18,0.09)', overflow: 'hidden', marginTop: 9 }}>
+                  <div style={{ height: '100%', width: `${t.pct}%`, borderRadius: 99, background: t.barColor, transition: 'width 0.3s ease' }} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ fontSize: 12.5, color: C.muted65, marginTop: 14, lineHeight: 1.5 }}>{cheer}</div>
       </div>
 
       <div className="profile-grid">

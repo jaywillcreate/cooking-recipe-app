@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/lib/store';
 import { Nav } from '@/components/Nav';
+import { Footer } from '@/components/Footer';
 import { Spinner } from '@/components/Spinner';
 import { C } from '@/lib/tokens';
 
@@ -27,9 +28,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, color: C.ink }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: C.bg, color: C.ink }}>
       <Nav />
-      <div className="ember-screen">{children}</div>
+      <div className="ember-screen" style={{ flex: 1 }}>{children}</div>
+      <Footer />
     </div>
   );
 }

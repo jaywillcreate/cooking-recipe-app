@@ -14,7 +14,7 @@ const SLOTS: { slot: MealSlot; label: string; emoji: string }[] = [
 ];
 
 /** Monday of the week containing d. */
-function weekStart(d: Date): Date {
+export function weekStart(d: Date): Date {
   const day = d.getDay(); // 0 Sun … 6 Sat
   return addDays(d, day === 0 ? -6 : 1 - day);
 }
