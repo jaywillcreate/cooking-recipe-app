@@ -67,6 +67,7 @@ function buildPrompt(profile: ProfileForPrompt, params: Record<string, unknown>,
     '- Cuisine: if the request names exactly one cuisine, use exactly that one. If it names SEVERAL cuisines, stay within them — when creating variations, spread them across the named cuisines (or one tasteful fusion of them). Only if it says "Surprise me" or names none, pick one from favoriteCuisines (or your choice if none).\n' +
     '- AUTHENTICITY: build the dish from ingredients, seasonings, pantry staples, and techniques that are genuinely traditional to the chosen cuisine. Do not substitute generic or out-of-place ingredients; the result should read as authentically that cuisine.\n' +
     '- Match the requested time budget and skill level; scale ingredient quantities to the requested number of servings if given.\n' +
+    '- NUTRITION: always include realistic PER-SERVING estimates as plain integers — "cal" in kcal, "protein"/"carbs"/"fat" in grams. Estimate honestly from the ingredients; never zeros, never strings, never omit.\n' +
     (params.kidFriendly
       ? '- KID-FRIENDLY: mild flavours with no strong spice or heat, familiar and fun, not too adventurous, easy for young children to eat and help prepare.\n'
       : '') +

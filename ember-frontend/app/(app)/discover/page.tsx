@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { recipeApi, sitesApi, dailyApi, cookbookApi, ApiError, type WebRecipeLink } from '@/lib/api';
 import { useApp } from '@/lib/store';
@@ -10,6 +10,25 @@ import { Spinner } from '@/components/Spinner';
 import { CuisineChips } from '@/components/CuisineChips';
 
 const PAGE_SIZE = 8; // 2 rows × 4 columns
+const SPARK_PAGE_SIZE = 6; // 2 rows × 3 columns (6 clean rows on mobile)
+
+/** One card in the combined Fresh Sparks feed. */
+interface SparkItem {
+  key: string;
+  title: string;
+  snippet?: string;
+  image?: string;
+  source: string;
+  href: string;
+  external: boolean; // live web find (opens the source) vs followed-site recipe (opens in-app)
+  following?: boolean;
+}
+
+const sparkPagerBtn = (off: boolean): React.CSSProperties => ({
+  fontFamily: 'inherit', fontSize: 15, fontWeight: 800, width: 28, height: 28, borderRadius: '50%', padding: 0,
+  border: '1.5px solid rgba(36,26,18,0.22)', background: 'transparent', color: 'rgba(36,26,18,0.75)',
+  cursor: off ? 'default' : 'pointer', opacity: off ? 0.35 : 1, lineHeight: 1,
+});
 
 const pagerStyle: React.CSSProperties = {
   fontFamily: 'inherit', fontSize: 13, fontWeight: 700, padding: '9px 18px', borderRadius: 999,
@@ -43,7 +62,27 @@ export default function DiscoverPage() {
   const [siteError, setSiteError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
+  const [sparkPage, setSparkPage] = useState(0);
   const debounce = useRef<ReturnType<typeof setTimeout>>();
+
+  // Fresh Sparks = the latest from followed sites (in-app recipes) + live web
+  // finds, one combined feed. Followed sites lead — the user chose those.
+  const sparkItems = useMemo<SparkItem[]>(
+    () => [
+      ...webRecipes.map((w) => ({
+        key: `r-${w.id}`, title: w.title, snippet: w.desc || undefined, image: recipeImageUrl(w),
+        source: w.source ?? '', href: `/recipe/${w.id}`, external: false, following: true,
+      })),
+      ...webFinds.map((w) => ({
+        key: `w-${w.url}`, title: w.title, snippet: w.snippet || undefined, image: w.image,
+        source: w.source, href: w.url, external: true,
+      })),
+    ],
+    [webRecipes, webFinds],
+  );
+  const sparkPages = Math.ceil(sparkItems.length / SPARK_PAGE_SIZE);
+  useEffect(() => setSparkPage(0), [sparkItems.length]);
+  const sparkPageItems = sparkItems.slice(sparkPage * SPARK_PAGE_SIZE, (sparkPage + 1) * SPARK_PAGE_SIZE);
 
   const loadWeb = useCallback(async () => {
     const [web, s] = await Promise.all([recipeApi.list({ scope: 'web' }), sitesApi.list()]);
@@ -208,70 +247,6 @@ export default function DiscoverPage() {
               : 'Freshly created TastyEmber recipes and live finds from around the web. Pick favourite cuisines in your profile to personalize this feed.'}
       </div>
 
-      {/* Fresh Sparks — live editorial picks from the web's best kitchens,
-          matched to the user's tastes. One featured card + a supporting grid. */}
-      {!q.trim() && cuisines.length === 0 && webFinds.length > 0 && (
-        <div style={{ margin: '0 0 28px', padding: '20px 20px 18px', background: C.surface, border: `1px solid ${C.line}`, borderRadius: 16, boxShadow: '0 1px 3px rgba(36,26,18,0.04)' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.4 }}>
-              ✨ Fresh Sparks
-            </div>
-            <div style={{ fontFamily: mono, fontSize: 11, color: 'rgba(36,26,18,0.5)' }}>
-              kindling from the web’s best kitchens — picked for your tastes
-            </div>
-            <div style={{ fontFamily: mono, fontSize: 10.5, color: C.muted55, marginLeft: 'auto' }}>refreshes every 30 min</div>
-          </div>
-          <div className="spark-grid">
-            {webFinds.slice(0, 9).map((w, i) => {
-              const featured = i === 0;
-              return (
-                <a
-                  key={w.url}
-                  href={w.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`spark-card ember-card${featured ? ' featured' : ''}`}
-                  style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 12, overflow: 'hidden', color: C.ink }}
-                >
-                  <div
-                    className="spark-thumb"
-                    style={{
-                      background: w.image
-                        ? `#e9dfcc url("${w.image}") center/cover no-repeat`
-                        : 'linear-gradient(135deg, rgba(196,85,45,0.16), rgba(232,161,60,0.22))',
-                    }}
-                  >
-                    {!w.image && <span style={{ fontSize: featured ? 34 : 24 }}>🍳</span>}
-                  </div>
-                  <div className="spark-body">
-                    <div className="spark-title" style={{ fontSize: featured ? 16.5 : 13, fontWeight: 800, lineHeight: 1.25, letterSpacing: featured ? -0.3 : 0 }}>
-                      {w.title}
-                    </div>
-                    {w.snippet && (
-                      <div className={featured ? 'spark-snippet featured' : 'spark-snippet'} style={{ fontSize: featured ? 12.5 : 11.5, color: C.muted65, lineHeight: 1.5 }}>
-                        {w.snippet}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto', paddingTop: 6 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(w.source)}&sz=32`}
-                        alt=""
-                        width={14}
-                        height={14}
-                        style={{ borderRadius: 4, flex: 'none' }}
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                      <span style={{ fontFamily: mono, fontSize: 10.5, color: C.green, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.source}</span>
-                      <span style={{ fontFamily: mono, fontSize: 10.5, color: C.muted55, flex: 'none' }}>↗</span>
-                    </div>
-                  </div>
-                </a>
-              );
-            })}
-          </div>
-        </div>
-      )}
       <div className="kitchen-grid">
         {recipes.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE).map((r) => (
           <RecipeCard key={r.id} r={r} showTags showSaveToggle />
@@ -299,37 +274,95 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* from the web */}
-      {!q.trim() && (
-        <div style={{ marginTop: 40, padding: '22px 24px', background: C.surface, border: `1.5px dashed ${C.line22}`, borderRadius: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 15, fontWeight: 800 }}>Fresh from the web</div>
-            <div style={{ fontFamily: mono, fontSize: 11, color: 'rgba(36,26,18,0.5)' }}>latest recipes from the sites you follow</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.muted55, flex: 'none' }}>My sites</span>
-            <div className="web-pills">
-              {sites.map((d) => (
-                <span key={d} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: mono, fontSize: 11.5, fontWeight: 500, color: C.green, background: 'rgba(47,122,77,0.1)', border: '1px solid rgba(47,122,77,0.3)', padding: '5px 7px 5px 12px', borderRadius: 999, whiteSpace: 'nowrap' }}>
-                  {d}
-                  <button onClick={() => removeSite(d)} title="Remove site" style={{ border: 'none', background: 'rgba(47,122,77,0.2)', color: C.green, width: 16, height: 16, borderRadius: '50%', fontSize: 11, lineHeight: 1, cursor: 'pointer', padding: 0 }}>
-                    ×
-                  </button>
-                </span>
-              ))}
-              {sites.length === 0 && <span style={{ fontSize: 12, color: C.muted55 }}>No sites yet — add one below.</span>}
+      {/* Fresh Sparks — one combined, paginated feed: the latest posts from
+          the user's followed sites + live finds from the web's best kitchens.
+          Site management lives inline at the bottom of the card. */}
+      {!q.trim() && cuisines.length === 0 && (
+        <div style={{ marginTop: 36, padding: '20px 20px 16px', background: C.surface, border: `1px solid ${C.line}`, borderRadius: 16, boxShadow: '0 1px 3px rgba(36,26,18,0.04)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.4 }}>✨ Fresh Sparks</div>
+              <div style={{ fontFamily: mono, fontSize: 11, color: 'rgba(36,26,18,0.5)', marginTop: 2 }}>
+                new from your sites &amp; the web’s best kitchens — picked for your tastes
+              </div>
             </div>
+            {sparkPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none' }}>
+                <button onClick={() => setSparkPage((p) => Math.max(0, p - 1))} disabled={sparkPage === 0} aria-label="Previous sparks" style={sparkPagerBtn(sparkPage === 0)}>‹</button>
+                <span style={{ fontFamily: mono, fontSize: 11, color: C.muted65 }}>{sparkPage + 1}/{sparkPages}</span>
+                <button onClick={() => setSparkPage((p) => Math.min(sparkPages - 1, p + 1))} disabled={sparkPage >= sparkPages - 1} aria-label="Next sparks" style={sparkPagerBtn(sparkPage >= sparkPages - 1)}>›</button>
+              </div>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+
+          {sparkPageItems.length > 0 && (
+            <div className="spark-grid">
+              {sparkPageItems.map((w) => (
+                <a
+                  key={w.key}
+                  href={w.href}
+                  target={w.external ? '_blank' : undefined}
+                  rel={w.external ? 'noopener noreferrer' : undefined}
+                  onClick={w.external ? undefined : (e) => { e.preventDefault(); router.push(w.href); }}
+                  className="spark-card ember-card"
+                  style={{ background: C.bg, border: `1px solid ${C.line}`, borderRadius: 12, overflow: 'hidden', color: C.ink }}
+                >
+                  <div
+                    className="spark-thumb"
+                    style={{
+                      background: w.image
+                        ? `#e9dfcc url("${w.image}") center/cover no-repeat`
+                        : 'linear-gradient(135deg, rgba(196,85,45,0.16), rgba(232,161,60,0.22))',
+                    }}
+                  >
+                    {!w.image && <span style={{ fontSize: 24 }}>🍳</span>}
+                  </div>
+                  <div className="spark-body">
+                    <div className="spark-title" style={{ fontSize: 13, fontWeight: 800, lineHeight: 1.25 }}>{w.title}</div>
+                    {w.snippet && <div className="spark-snippet" style={{ fontSize: 11.5, color: C.muted65, lineHeight: 1.5 }}>{w.snippet}</div>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto', paddingTop: 6, minWidth: 0 }}>
+                      {w.source && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(w.source)}&sz=32`}
+                          alt=""
+                          width={14}
+                          height={14}
+                          style={{ borderRadius: 4, flex: 'none' }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      )}
+                      <span style={{ fontFamily: mono, fontSize: 10.5, color: C.green, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.source}</span>
+                      <span style={{ marginLeft: 'auto', fontFamily: mono, fontSize: 10, color: w.following ? C.green : C.muted55, flex: 'none' }}>
+                        {w.following ? '✓ following' : '↗'}
+                      </span>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+
+          {/* followed-sites management */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.line}` }}>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.muted55, flex: 'none' }}>My sites</span>
+            {sites.map((d) => (
+              <span key={d} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: mono, fontSize: 11.5, fontWeight: 500, color: C.green, background: 'rgba(47,122,77,0.1)', border: '1px solid rgba(47,122,77,0.3)', padding: '5px 7px 5px 12px', borderRadius: 999, whiteSpace: 'nowrap' }}>
+                {d}
+                <button onClick={() => removeSite(d)} title="Remove site" style={{ border: 'none', background: 'rgba(47,122,77,0.2)', color: C.green, width: 16, height: 16, borderRadius: '50%', fontSize: 11, lineHeight: 1, cursor: 'pointer', padding: 0 }}>
+                  ×
+                </button>
+              </span>
+            ))}
             <input
               value={newSite}
               onChange={(e) => { setNewSite(e.target.value); setSiteError(null); }}
               onKeyDown={(e) => { if (e.key === 'Enter') void addSite(); }}
-              placeholder="add a site — e.g. smittenkitchen.com"
+              placeholder="follow a site — e.g. smittenkitchen.com"
               style={{ border: `1.5px solid ${C.line22}`, borderRadius: 999, padding: '7px 14px', fontFamily: mono, fontSize: 11.5, background: C.bg, color: C.ink, width: 230 }}
             />
             <button onClick={addSite} style={{ border: 'none', background: C.green, color: '#fff', fontWeight: 800, fontSize: 12, padding: '8px 15px', borderRadius: 999, cursor: 'pointer' }}>
-              + Add site
+              + Add
             </button>
           </div>
           {siteLoading && (
@@ -339,17 +372,6 @@ export default function DiscoverPage() {
             </div>
           )}
           {siteError && <div style={{ marginTop: 10, fontSize: 12.5, color: C.error, fontWeight: 600 }}>{siteError}</div>}
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 12 }}>
-            {webRecipes.map((w) => (
-              <div key={w.id} className="ember-webmini" onClick={() => router.push(`/recipe/${w.id}`)} style={{ flex: 1, minWidth: 240, display: 'flex', gap: 12, alignItems: 'center', padding: 12, border: `1px solid ${C.line}`, borderRadius: 10, cursor: 'pointer' }}>
-                <div style={{ width: 52, height: 52, borderRadius: 8, flex: 'none', background: `#e9dfcc url("${recipeImageUrl(w)}") center/cover no-repeat` }} />
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.25 }}>{w.title}</div>
-                  <div style={{ fontFamily: mono, fontSize: 10.5, color: C.green, marginTop: 3 }}>{w.source}</div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>

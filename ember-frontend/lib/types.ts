@@ -79,6 +79,8 @@ export interface MealPlanEntry {
   recipeId: string | null;
   title: string;
   notes: string;
+  /** The linked recipe's per-serving macros (null for free-text meals). */
+  nutrition: { cal: number | string; protein: number | string; carbs: number | string; fat: number | string } | null;
   synced: boolean; // pushed to Google Calendar
 }
 

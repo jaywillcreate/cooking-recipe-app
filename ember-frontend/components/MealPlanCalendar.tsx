@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { mealPlanApi, recipeApi, ApiError } from '@/lib/api';
+import { mealPlanApi, nutritionApi, recipeApi, ApiError } from '@/lib/api';
 import type { MealPlanEntry, MealSlot, Recipe } from '@/lib/types';
 import { C, mono } from '@/lib/tokens';
 import { Spinner } from './Spinner';
@@ -36,6 +36,8 @@ export function MealPlanCalendar({ calendarConnected, onNeedCalendar }: { calend
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<Recipe[]>([]);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [logged, setLogged] = useState<Set<string>>(new Set()); // entries logged to the tracker this visit
+  const [logging, setLogging] = useState<string | null>(null);
 
   // composer state
   const [draftDate, setDraftDate] = useState<string | null>(null);
@@ -105,6 +107,21 @@ export function MealPlanCalendar({ calendarConnected, onNeedCalendar }: { calend
     }
   }
 
+  /** Log a planned recipe to the nutrition tracker — macros come from the recipe. */
+  async function logToTracker(entry: MealPlanEntry) {
+    if (!entry.recipeId) return;
+    setLogging(entry.id);
+    setError(null);
+    try {
+      await nutritionApi.add({ date: entry.date, meal: entry.slot, name: entry.title, recipeId: entry.recipeId });
+      setLogged((cur) => new Set(cur).add(entry.id));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not log that to your tracker.');
+    } finally {
+      setLogging(null);
+    }
+  }
+
   async function sync(entry: MealPlanEntry) {
     if (!calendarConnected) return onNeedCalendar();
     setSyncing(entry.id);
@@ -142,13 +159,13 @@ export function MealPlanCalendar({ calendarConnected, onNeedCalendar }: { calend
           <span style={{ fontSize: 12.5, fontWeight: 800, flex: 'none' }}>
             {new Date(`${draftDate}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
           </span>
-          <select value={draftSlot} onChange={(e) => setDraftSlot(e.target.value as MealSlot)} style={{ ...inputStyle, cursor: 'pointer', flex: 'none' }}>
+          <select className="ember-select" value={draftSlot} onChange={(e) => setDraftSlot(e.target.value as MealSlot)} style={{ flex: 'none' }}>
             {SLOTS.map((s) => (
               <option key={s.slot} value={s.slot}>{s.emoji} {s.label}</option>
             ))}
           </select>
           {saved.length > 0 && (
-            <select value={draftRecipe} onChange={(e) => { setDraftRecipe(e.target.value); if (e.target.value) setDraftTitle(''); }} style={{ ...inputStyle, cursor: 'pointer', flex: '1 1 170px', minWidth: 0 }}>
+            <select className="ember-select" value={draftRecipe} onChange={(e) => { setDraftRecipe(e.target.value); if (e.target.value) setDraftTitle(''); }} style={{ flex: '1 1 170px', minWidth: 0 }}>
               <option value="">From your cookbook…</option>
               {saved.map((r) => (
                 <option key={r.id} value={r.id}>{r.title}</option>
@@ -194,14 +211,32 @@ export function MealPlanCalendar({ calendarConnected, onNeedCalendar }: { calend
                         <span style={{ flex: 1, fontWeight: 700, minWidth: 0, overflowWrap: 'break-word' }}>{e.title}</span>
                         <button onClick={() => void remove(e)} title="Remove" className="plan-entry-x" style={{ border: 'none', background: 'none', color: C.muted55, fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: 0, flex: 'none' }}>×</button>
                       </div>
-                      <button
-                        onClick={() => void sync(e)}
-                        disabled={e.synced || syncing === e.id}
-                        title={e.synced ? 'On your Google Calendar' : 'Add to Google Calendar'}
-                        style={{ marginTop: 5, border: 'none', background: 'none', padding: 0, cursor: e.synced ? 'default' : 'pointer', fontFamily: mono, fontSize: 10, fontWeight: 700, color: e.synced ? C.green : C.muted55 }}
-                      >
-                        {e.synced ? '✓ on calendar' : syncing === e.id ? 'adding…' : '📅 add to calendar'}
-                      </button>
+                      {(() => {
+                        const kcal = e.nutrition ? parseInt(String(e.nutrition.cal), 10) || 0 : 0;
+                        return kcal > 0 ? (
+                          <div style={{ marginTop: 4, fontFamily: mono, fontSize: 10, color: C.muted55 }}>~{kcal} kcal / serving</div>
+                        ) : null;
+                      })()}
+                      <div style={{ marginTop: 5, display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
+                        <button
+                          onClick={() => void sync(e)}
+                          disabled={e.synced || syncing === e.id}
+                          title={e.synced ? 'On your Google Calendar' : 'Add to Google Calendar'}
+                          style={{ border: 'none', background: 'none', padding: 0, cursor: e.synced ? 'default' : 'pointer', fontFamily: mono, fontSize: 10, fontWeight: 700, color: e.synced ? C.green : C.muted55 }}
+                        >
+                          {e.synced ? '✓ on calendar' : syncing === e.id ? 'adding…' : '+ add to calendar'}
+                        </button>
+                        {e.recipeId && (
+                          <button
+                            onClick={() => void logToTracker(e)}
+                            disabled={logged.has(e.id) || logging === e.id}
+                            title={logged.has(e.id) ? 'Logged to your nutrition tracker' : 'Log this meal to your nutrition tracker'}
+                            style={{ border: 'none', background: 'none', padding: 0, cursor: logged.has(e.id) ? 'default' : 'pointer', fontFamily: mono, fontSize: 10, fontWeight: 700, color: logged.has(e.id) ? C.green : C.muted55 }}
+                          >
+                            {logged.has(e.id) ? '✓ logged' : logging === e.id ? 'logging…' : '+ log to tracker'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

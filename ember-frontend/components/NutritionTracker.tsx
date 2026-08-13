@@ -234,13 +234,14 @@ export function NutritionTracker() {
         </div>
         {saved.length > 0 && (
           <select
+            className="ember-select"
             value=""
             disabled={busy}
             onChange={(e) => {
               const r = saved.find((x) => x.id === e.target.value);
               if (r) void add({ name: r.title, recipeId: r.id });
             }}
-            style={{ ...inputStyle, width: '100%', cursor: 'pointer', marginBottom: 8 }}
+            style={{ width: '100%', marginBottom: 8 }}
           >
             <option value="">🍳 Log a recipe from your cookbook… (macros auto-filled)</option>
             {saved.map((r) => (

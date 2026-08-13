@@ -10,6 +10,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SELECT_ENTRY = `
   SELECT m.id, to_char(m.plan_date, 'YYYY-MM-DD') AS "date", m.slot, m.recipe_id AS "recipeId",
          COALESCE(NULLIF(m.title, ''), r.title, '') AS "title", m.notes,
+         r.nutrition AS "nutrition",
          (m.gcal_event_id IS NOT NULL) AS "synced"
     FROM meal_plans m LEFT JOIN recipes r ON r.id = m.recipe_id`;
 

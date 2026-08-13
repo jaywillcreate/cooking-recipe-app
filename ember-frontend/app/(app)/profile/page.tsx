@@ -13,12 +13,12 @@ import { Spinner } from '@/components/Spinner';
 
 type Section = 'account' | 'preferences' | 'nutrition' | 'mealplan' | 'connections';
 
-const SECTIONS: { id: Section; label: string; emoji: string; blurb: string }[] = [
-  { id: 'account', label: 'Account', emoji: '👤', blurb: 'Your photo, name, and sign-in details.' },
-  { id: 'preferences', label: 'Taste & cooking', emoji: '🍳', blurb: 'What TastyEmber uses to personalize every recipe.' },
-  { id: 'nutrition', label: 'Nutrition', emoji: '📊', blurb: 'Track what you eat against your daily targets.' },
-  { id: 'mealplan', label: 'Meal plan', emoji: '📆', blurb: 'Plan the week, then send meals to your calendar.' },
-  { id: 'connections', label: 'Connections', emoji: '🔗', blurb: 'Link outside services like Google Calendar.' },
+const SECTIONS: { id: Section; label: string; blurb: string }[] = [
+  { id: 'account', label: 'Account', blurb: 'Your photo, name, and sign-in details.' },
+  { id: 'preferences', label: 'Taste & cooking', blurb: 'What TastyEmber uses to personalize every recipe.' },
+  { id: 'nutrition', label: 'Nutrition', blurb: 'Track what you eat against your daily targets.' },
+  { id: 'mealplan', label: 'Meal plan', blurb: 'Plan the week, then send meals to your calendar.' },
+  { id: 'connections', label: 'Connections', blurb: 'Link outside services like Google Calendar.' },
 ];
 
 const input: React.CSSProperties = {
@@ -147,11 +147,10 @@ function Dashboard() {
                 aria-current={isActive}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', fontFamily: 'inherit',
-                  fontSize: 13.5, fontWeight: isActive ? 800 : 600, cursor: 'pointer', padding: '11px 14px', borderRadius: 12,
+                  fontSize: 13.5, fontWeight: isActive ? 800 : 600, cursor: 'pointer', padding: '11px 16px', borderRadius: 12,
                   border: 'none', background: isActive ? C.ink : 'transparent', color: isActive ? C.bg : C.muted75,
                 }}
               >
-                <span style={{ fontSize: 15 }}>{s.emoji}</span>
                 {s.label}
                 {s.id === 'connections' && cal?.connected && <span style={{ marginLeft: 'auto', width: 7, height: 7, borderRadius: '50%', background: C.green, flex: 'none' }} />}
               </button>
@@ -162,7 +161,7 @@ function Dashboard() {
         {/* section content */}
         <div style={{ minWidth: 0 }}>
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.4 }}>{active.emoji} {active.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: -0.4 }}>{active.label}</div>
             <div style={{ fontSize: 13, color: C.muted55, marginTop: 3 }}>{active.blurb}</div>
           </div>
 

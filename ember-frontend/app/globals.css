@@ -21,9 +21,6 @@ a { color: inherit; text-decoration: none; }
 /* Recipe-card hover (prototype: translateY(-2px) + soft shadow) */
 .ember-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
 .ember-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(36, 26, 18, 0.1); }
-.ember-webmini { transition: background 0.15s ease; }
-.ember-webmini:hover { background: #faf5ec; }
-
 .ember-screen { animation: emberFade 0.25s ease; }
 
 /* ─── Responsive layout (grids that must collapse on small screens) ─── */
@@ -93,31 +90,45 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 720px)  { .kitchen-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 440px)  { .kitchen-grid { grid-template-columns: 1fr; } }
 
-/* Fresh from the web: a single horizontally-scrollable row of site pills */
-.web-pills { display: flex; gap: 8px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px; scrollbar-width: thin; }
-.web-pills > * { flex: 0 0 auto; }
-.web-pills::-webkit-scrollbar { height: 6px; }
-.web-pills::-webkit-scrollbar-thumb { background: rgba(36,26,18,0.2); border-radius: 999px; }
-
-/* Fresh Sparks: editorial grid of live web finds — one featured card (2×2)
-   plus compact supporting cards; collapses to image-left rows on mobile. */
-.spark-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-flow: dense; gap: 14px; }
+/* Fresh Sparks: paginated editorial grid of live web finds + followed-site
+   posts — 3 across on desktop, collapsing to image-left rows on mobile. */
+.spark-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .spark-card { display: flex; flex-direction: column; text-decoration: none; }
-.spark-card.featured { grid-column: span 2; grid-row: span 2; }
 .spark-thumb { aspect-ratio: 16 / 10; display: flex; align-items: center; justify-content: center; flex: none; }
 .spark-body { display: flex; flex-direction: column; gap: 5px; padding: 10px 12px 12px; flex: 1; min-width: 0; }
 .spark-title { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .spark-snippet { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.spark-snippet.featured { -webkit-line-clamp: 3; }
-@media (max-width: 1000px) {
+@media (max-width: 900px) {
   .spark-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 720px) {
-  .spark-grid { grid-template-columns: minmax(0, 1fr); }
-  .spark-card, .spark-card.featured { grid-column: auto; grid-row: auto; flex-direction: row; }
-  .spark-thumb { aspect-ratio: auto; width: 104px; min-height: 88px; }
+@media (max-width: 640px) {
+  .spark-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .spark-card { flex-direction: row; }
+  .spark-thumb { aspect-ratio: auto; width: 104px; min-height: 84px; }
   .spark-body { padding: 10px 12px; }
+  .spark-snippet { display: none; }
 }
+
+/* Styled native <select> — consistent chrome + custom chevron */
+.ember-select {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: #241a12;
+  background-color: #fff;
+  border: 1.5px solid rgba(36, 26, 18, 0.18);
+  border-radius: 10px;
+  padding: 9px 32px 9px 12px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23241a12' stroke-opacity='0.55' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 11px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.ember-select:hover { border-color: rgba(36, 26, 18, 0.38); }
+.ember-select:focus { outline: 2px solid #e8a13c; outline-offset: 1px; }
 
 /* Profile settings dashboard: sticky section nav beside the content column */
 .profile-grid { display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 26px; align-items: start; }

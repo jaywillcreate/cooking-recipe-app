@@ -202,9 +202,9 @@ export function PreferenceSettings({
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: C.muted75 }}>Deliver at</span>
               <select
+                className="ember-select"
                 value={p.deliveryHour}
                 onChange={(e) => patchProfile({ deliveryHour: parseInt(e.target.value, 10) })}
-                style={{ fontFamily: 'inherit', fontSize: 13, padding: '7px 10px', borderRadius: 10, border: `1.5px solid ${C.line22}`, background: C.bg, color: C.ink, cursor: 'pointer' }}
               >
                 {Array.from({ length: 24 }).map((_, h) => (
                   <option key={h} value={h}>{formatHour(h)}</option>

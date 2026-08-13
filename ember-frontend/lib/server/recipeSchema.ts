@@ -1,11 +1,18 @@
 import { z } from 'zod';
 
 /** Validates the model's JSON output before it touches the DB. */
+// Normalized to integers ("450 kcal" → 450) so the nutrition tracker and meal
+// plan can do math on every recipe's macros without re-parsing.
+const macro = z
+  .union([z.number(), z.string()])
+  .default(0)
+  .transform((v) => (typeof v === 'number' ? Math.round(v) : parseInt(String(v), 10) || 0));
+
 export const nutritionSchema = z.object({
-  cal: z.union([z.number(), z.string()]).default(0),
-  protein: z.union([z.number(), z.string()]).default(0),
-  carbs: z.union([z.number(), z.string()]).default(0),
-  fat: z.union([z.number(), z.string()]).default(0),
+  cal: macro,
+  protein: macro,
+  carbs: macro,
+  fat: macro,
 });
 
 export const generatedRecipeSchema = z.object({
