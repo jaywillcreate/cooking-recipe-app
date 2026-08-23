@@ -110,6 +110,46 @@ export const mealPlanApi = {
     api<{ entry: MealPlanEntry }>('/api/meal-plan', { body }),
   remove: (id: string) => api(`/api/meal-plan/${id}`, { method: 'DELETE' }),
   syncToCalendar: (id: string) => api<{ synced: boolean; htmlLink: string }>(`/api/meal-plan/${id}/calendar`, { method: 'POST' }),
+  /** Every planned recipe for the week rolled into one aisle-sorted list. */
+  shoppingList: (start: string, end: string) =>
+    api<WeekListResponse>(`/api/meal-plan/shopping-list?start=${start}&end=${end}`),
+};
+
+/** One merged line on the week list — a single thing to buy. */
+export interface WeekListItem {
+  id: string;
+  name: string;
+  /** Summed quantity, e.g. "1½ lb · 3 cloves". Empty when the recipes never gave one. */
+  quantity: string;
+  recipes: string[];
+  aisle: string;
+  aisleLabel: string;
+  have: boolean;
+}
+
+export interface WeekListResponse {
+  start: string;
+  end: string;
+  groups: { key: string; label: string; items: WeekListItem[] }[];
+  /** Items matched against the cook's "usually on hand" staples. */
+  onHand: WeekListItem[];
+  recipes: { date: string; slot: string; title: string; recipeId: string | null }[];
+  /** Planned meals with no linked recipe — nothing to shop for. */
+  unplanned: { date: string; slot: string; title: string }[];
+  counts: { items: number; onHand: number; recipes: number };
+  pantryTerms: string[];
+}
+
+export interface ShareState {
+  isPublic: boolean;
+  slug: string | null;
+  url: string | null;
+}
+
+export const shareApi = {
+  get: (recipeId: string) => api<ShareState>(`/api/recipes/${recipeId}/share`),
+  publish: (recipeId: string) => api<ShareState>(`/api/recipes/${recipeId}/share`, { method: 'POST' }),
+  unpublish: (recipeId: string) => api<ShareState>(`/api/recipes/${recipeId}/share`, { method: 'DELETE' }),
 };
 
 export const calendarApi = {

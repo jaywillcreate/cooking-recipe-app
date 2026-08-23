@@ -314,3 +314,14 @@ CREATE TABLE IF NOT EXISTS google_calendar_connections (
   access_expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Public recipe sharing: a recipe is reachable at /r/<share_slug> only once
+-- is_public is true. Seed recipes (owner_id IS NULL) are the public catalogue;
+-- a user's own creations stay private until they explicitly share them.
+-- Mirrored at runtime by ensureSharingColumns() in lib/server/services/sharing.ts.
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS share_slug TEXT;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS shared_at TIMESTAMPTZ;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_recipes_share_slug ON recipes(share_slug) WHERE share_slug IS NOT NULL;
+UPDATE recipes SET is_public = TRUE, shared_at = COALESCE(shared_at, created_at)
+ WHERE owner_id IS NULL AND is_public = FALSE;

@@ -99,3 +99,46 @@ export const IconExternal = (p: IconProps) => (
     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
   </Svg>
 );
+
+export const IconShare = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <path d="m8.6 13.5 6.8 4" />
+    <path d="m15.4 6.5-6.8 4" />
+  </Svg>
+);
+
+export const IconGlobe = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18" />
+    <path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18" />
+  </Svg>
+);
+
+export const IconLock = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="4" y="10" width="16" height="10" rx="2" />
+    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+  </Svg>
+);
+
+export const IconList = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M8 6h13" />
+    <path d="M8 12h13" />
+    <path d="M8 18h13" />
+    <path d="M3 6h.01" />
+    <path d="M3 12h.01" />
+    <path d="M3 18h.01" />
+  </Svg>
+);
+
+export const IconRefresh = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M21 12a9 9 0 1 1-2.6-6.4" />
+    <path d="M21 3v6h-6" />
+  </Svg>
+);

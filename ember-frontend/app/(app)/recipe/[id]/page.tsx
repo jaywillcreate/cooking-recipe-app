@@ -10,6 +10,7 @@ import { Spinner } from '@/components/Spinner';
 import { Feedback } from '@/components/Feedback';
 import { StarRating } from '@/components/StarRating';
 import { ShoppingList } from '@/components/ShoppingList';
+import { ShareRecipe } from '@/components/ShareRecipe';
 import { KitchenIcon } from '@/components/KitchenIcons';
 import { StepImage } from '@/components/StepImage';
 import { useGeneratedImage } from '@/lib/useGeneratedImage';
@@ -178,6 +179,7 @@ export default function RecipeDetailPage() {
               <button onClick={() => { setEmailOpen((o) => !o); setEmailMsg(null); setEmailErr(null); }} style={{ fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: '11px 24px', borderRadius: 999, border: `1.5px solid ${C.line22}`, background: 'none', color: C.ink }}>
                 ✉ Email recipe
               </button>
+              <ShareRecipe recipeId={recipe.id} title={recipe.title} />
               <div style={{ fontSize: 12, color: C.muted55, fontWeight: 500, textAlign: 'center' }}>{recipe.meta}</div>
               <div style={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
                 <StarRating recipeId={recipe.id} initialMine={recipe.myStars ?? 0} initialAvg={recipe.starsAvg ?? null} initialCount={recipe.starsCount ?? 0} />

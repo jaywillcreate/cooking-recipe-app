@@ -4,6 +4,7 @@ import { mealPlanApi, nutritionApi, recipeApi, ApiError } from '@/lib/api';
 import type { MealPlanEntry, MealSlot, Recipe } from '@/lib/types';
 import { C, mono } from '@/lib/tokens';
 import { Spinner } from './Spinner';
+import { WeekShoppingList } from './WeekShoppingList';
 import { addDays, toYMD } from './NutritionTracker';
 
 const SLOTS: { slot: MealSlot; label: string; emoji: string }[] = [
@@ -38,6 +39,8 @@ export function MealPlanCalendar({ calendarConnected, onNeedCalendar }: { calend
   const [syncing, setSyncing] = useState<string | null>(null);
   const [logged, setLogged] = useState<Set<string>>(new Set()); // entries logged to the tracker this visit
   const [logging, setLogging] = useState<string | null>(null);
+  // Bumped whenever the plan changes so the week shopping list re-derives.
+  const [planVersion, setPlanVersion] = useState(0);
 
   // composer state
   const [draftDate, setDraftDate] = useState<string | null>(null);
@@ -90,6 +93,7 @@ export function MealPlanCalendar({ calendarConnected, onNeedCalendar }: { calend
         title: draftTitle.trim(),
       });
       setEntries((cur) => [...cur.filter((x) => !(x.date === entry.date && x.slot === entry.slot)), entry]);
+      setPlanVersion((v) => v + 1);
       setDraftDate(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not save that meal — try again.');
@@ -100,6 +104,7 @@ export function MealPlanCalendar({ calendarConnected, onNeedCalendar }: { calend
 
   async function remove(entry: MealPlanEntry) {
     setEntries((cur) => cur.filter((x) => x.id !== entry.id));
+    setPlanVersion((v) => v + 1);
     try {
       await mealPlanApi.remove(entry.id);
     } catch {
@@ -253,6 +258,20 @@ export function MealPlanCalendar({ calendarConnected, onNeedCalendar }: { calend
       <div style={{ fontSize: 11.5, color: C.muted55, marginTop: 10, lineHeight: 1.5 }}>
         Meals sync to Google Calendar at sensible times — breakfast 8:00, lunch 12:30, snack 15:30, dinner 18:30 (1-hour events, your local time).
       </div>
+
+      {/* One shop for the whole week, built from everything planned above */}
+      <section style={{ marginTop: 30, paddingTop: 24, borderTop: `1px solid ${C.line}` }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: C.rust, margin: 0 }}>
+            Shop for this week
+          </h3>
+          <span style={{ fontFamily: mono, fontSize: 11, color: C.muted55 }}>{rangeLabel}</span>
+        </div>
+        <div style={{ fontSize: 12.5, color: C.muted55, marginBottom: 16, lineHeight: 1.5 }}>
+          Every planned recipe merged into one list — repeated ingredients added up, sorted the way you walk the store, staples you already keep left off.
+        </div>
+        <WeekShoppingList start={toYMD(start)} end={toYMD(addDays(start, 6))} reloadKey={planVersion} />
+      </section>
     </div>
   );
 }

@@ -16,7 +16,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [ready, bootstrap]);
 
   useEffect(() => {
-    if (ready && !user) router.replace('/login');
+    if (ready && !user) {
+      // Keep where they were going so a shared-recipe visitor lands on Create
+      // (craving and all) instead of a generic feed after signing in. Read from
+      // the browser rather than useSearchParams — this only ever runs client
+      // side, and the hook would opt every app page out of static prerender.
+      const dest = `${window.location.pathname}${window.location.search}`;
+      router.replace(`/login?next=${encodeURIComponent(dest)}`);
+    }
   }, [ready, user, router]);
 
   if (!ready || !user) {

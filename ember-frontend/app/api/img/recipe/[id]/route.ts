@@ -52,7 +52,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     );
     if (!recipe) return placeholder('American');
 
-    const cacheKey = `recipe:${id.data}:${CACHE_VERSION}`;
+    // Social crawlers want a wide 1200×630 frame; cards want the light 600×400.
+    // Separate cache keys so one never overwrites the other.
+    const og = req.nextUrl.searchParams.get('og') === '1';
+    const size = og ? { width: 1200, height: 630 } : { width: 600, height: 400 };
+    const cacheKey = `recipe:${id.data}:${og ? 'og:' : ''}${CACHE_VERSION}`;
 
     // Fast path: already generated → redirect straight to the CDN.
     const cached = await peekCachedImage(cacheKey);
@@ -60,11 +64,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     // Cache miss → generate once (rate-limited per IP as a spend/abuse guard).
     await assertRateLimit(`imgproxy:${clientIp(req)}`, 120, 3600, 'Image rate limit');
-    const url = await resolveGeneratedImage(cacheKey, recipeImagePrompt(recipe.title, recipe.cuisine), {
-      width: 600,
-      height: 400,
-    });
-    return url ? redirectToImage(url) : placeholder(recipe.cuisine);
+    const url = await resolveGeneratedImage(cacheKey, recipeImagePrompt(recipe.title, recipe.cuisine), size);
+    return url ? redirectToImage(url) : placeholder(recipe.cuisine, size);
   } catch {
     return placeholder('American');
   }
@@ -82,10 +83,11 @@ function redirectToImage(url: string): Response {
 }
 
 /** Deterministic cuisine-tinted gradient SVG shown when generation isn't available. */
-function placeholder(cuisine: string): Response {
+function placeholder(cuisine: string, size: { width: number; height: number } = { width: 600, height: 400 }): Response {
   const a = accentFor(cuisine);
   const seed = hashId(cuisine);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+  const { width, height } = size;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 600 400" preserveAspectRatio="none">
     <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="${a}" stop-opacity="0.28"/>
       <stop offset="1" stop-color="${a}" stop-opacity="0.55"/>

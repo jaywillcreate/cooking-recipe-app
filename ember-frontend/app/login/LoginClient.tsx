@@ -7,6 +7,14 @@ import { C } from '@/lib/tokens';
 import { Spinner } from '@/components/Spinner';
 import { Wordmark } from '@/components/Wordmark';
 
+/**
+ * Only same-origin paths are honoured as a post-login destination — an
+ * attacker-supplied ?next=https://… would otherwise be an open redirect.
+ */
+function safeNext(raw: string | null): string | null {
+  return raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : null;
+}
+
 export default function LoginClient({ googleEnabled }: { googleEnabled: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -18,13 +26,16 @@ export default function LoginClient({ googleEnabled }: { googleEnabled: boolean 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [remember, setRemember] = useState(true);
+  // Where the visitor was headed before the sign-in wall (e.g. arriving from a
+  // shared recipe and tapping "make your own version").
+  const next = safeNext(params.get('next'));
 
   useEffect(() => {
     if (!ready) void bootstrap();
   }, [ready, bootstrap]);
   useEffect(() => {
-    if (ready && user) router.replace('/discover');
-  }, [ready, user, router]);
+    if (ready && user) router.replace(next ?? '/discover');
+  }, [ready, user, router, next]);
   useEffect(() => {
     const e = params.get('error');
     if (e) setError(e);
@@ -40,7 +51,7 @@ export default function LoginClient({ googleEnabled }: { googleEnabled: boolean 
         router.replace('/profile');
       } else {
         await login(email, password, remember);
-        router.replace('/discover');
+        router.replace(next ?? '/discover');
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Try again.');

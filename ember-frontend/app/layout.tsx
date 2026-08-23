@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Archivo, IBM_Plex_Mono, Pacifico } from 'next/font/google';
 import './globals.css';
+import { config } from '@/lib/server/config';
 
 const archivo = Archivo({
   subsets: ['latin'],
@@ -23,6 +24,8 @@ const pacifico = Pacifico({
 });
 
 export const metadata: Metadata = {
+  // Resolves relative OG/canonical URLs on the public share pages.
+  metadataBase: new URL(config.appOrigin),
   title: 'TastyEmber — AI Recipe Creator',
   description: 'Discover, create, and collect personalized recipes. A new recipe invented for you every day.',
 };

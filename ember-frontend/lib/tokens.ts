@@ -79,7 +79,7 @@ const UNICODE_FRACTIONS: Record<string, number> = {
   '½': 0.5, '⅓': 1 / 3, '⅔': 2 / 3, '¼': 0.25, '¾': 0.75, '⅛': 0.125, '⅜': 0.375, '⅝': 0.625, '⅞': 0.875,
 };
 
-function formatQty(n: number): string {
+export function formatQty(n: number): string {
   const rounded = Math.round(n * 100) / 100;
   const whole = Math.floor(rounded);
   const frac = rounded - whole;
