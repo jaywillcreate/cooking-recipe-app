@@ -50,7 +50,9 @@ const matches = (want: string, got: string): boolean => got === want || got.star
  *   dataset   a light preference for the generic, complete datasets
  *
  * Plus two penalties: records joining several foods with "and" are blends, not
- * the ingredient; and babyfood/beverage records are rarely what a recipe means.
+ * the ingredient; and babyfood/restaurant records are rarely what a recipe
+ * means. Drinks are deliberately NOT penalised — wine, stock and juice are
+ * ordinary cooking ingredients that USDA files under "Beverages, …".
  */
 export function rank(term: string, hit: SearchHit): number {
   const want = tokens(term);
@@ -68,7 +70,7 @@ export function rank(term: string, hit: SearchHit): number {
 
   const typeBonus = hit.dataType === 'SR Legacy' ? 0.06 : hit.dataType === 'Foundation' ? 0.05 : 0;
   const blend = /\band\b/i.test(hit.description) ? 0.15 : 0;
-  const junk = /\b(babyfood|infant formula|beverage|restaurant|fast food|candies)\b/i.test(hit.description) ? 0.25 : 0;
+  const junk = /\b(babyfood|infant formula|restaurant|fast food|candies)\b/i.test(hit.description) ? 0.25 : 0;
 
   return coverage * 0.55 + precision * 0.2 + position * 0.25 + typeBonus - blend - junk;
 }

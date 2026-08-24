@@ -150,3 +150,13 @@ export async function backfillPublicSlugs(): Promise<number> {
   }
   return rows.length;
 }
+
+/** The public slug for a recipe, if it has one and is still shared. */
+export async function getPublicSlug(recipeId: string): Promise<string | null> {
+  await ensureSharingColumns();
+  const row = await queryOne<{ share_slug: string | null }>(
+    `SELECT share_slug FROM recipes WHERE id = $1 AND is_public = TRUE`,
+    [recipeId],
+  );
+  return row?.share_slug ?? null;
+}

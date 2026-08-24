@@ -359,5 +359,8 @@ CREATE TABLE IF NOT EXISTS recipe_nutrition (
   matched_count INTEGER NOT NULL,
   total_count   INTEGER NOT NULL,
   breakdown     JSONB NOT NULL,
-  computed_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  computed_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  -- Bumped when parsing/conversion/ranking changes; older rows recalculate.
+  algo_version  INTEGER NOT NULL DEFAULT 1
 );
+ALTER TABLE recipe_nutrition ADD COLUMN IF NOT EXISTS algo_version INTEGER NOT NULL DEFAULT 1;

@@ -103,7 +103,7 @@ const UNIT_ALIASES: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 /** Adjectives safe to drop — they never change what you buy. */
-const LEADING_NOISE = /^(fresh|freshly|ripe|good[- ]quality|quality|organic|large|medium|small|whole|raw|plain|boneless|skinless|unsalted|extra[- ]virgin)\s+/i;
+const LEADING_NOISE = /^(fresh|freshly|ripe|good[- ]quality|quality|organic|large|medium|small|whole|raw|plain|boneless|bone[- ]in|skinless|skin[- ]on|unsalted|extra[- ]virgin)\s+/i;
 
 /** Prep instructions that trail the ingredient name. */
 const TRAILING_PREP =
@@ -206,7 +206,22 @@ export function parseIngredient(raw: string): ParsedIngredient {
   const unit = takeUnit(rest);
   if (unit) rest = rest.slice(unit.consumed);
 
-  return { qty, unit: unit?.key ?? null, name: normalizeName(rest), raw: raw.trim() };
+  let name = normalizeName(rest);
+  let unitKey = unit?.key ?? null;
+
+  // "3 garlic cloves" puts the unit *after* the food, where takeUnit can't see
+  // it. Left alone the search term becomes "garlic clove", which matches
+  // nothing — USDA indexes the food, not the way it was cut.
+  if (qty != null && !unitKey) {
+    const words = name.split(' ');
+    const last = words[words.length - 1] ?? '';
+    if (words.length > 1 && COUNT_UNITS.includes(last)) {
+      unitKey = last;
+      name = words.slice(0, -1).join(' ');
+    }
+  }
+
+  return { qty, unit: unitKey, name, raw: raw.trim() };
 }
 
 function parseQty(s: string): number | null {

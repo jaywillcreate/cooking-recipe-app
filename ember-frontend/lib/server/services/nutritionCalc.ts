@@ -75,6 +75,7 @@ export function ensureNutritionTable(): Promise<void> {
         breakdown     JSONB NOT NULL,
         computed_at   TIMESTAMPTZ NOT NULL DEFAULT now()
       )`);
+      await query(`ALTER TABLE recipe_nutrition ADD COLUMN IF NOT EXISTS algo_version INTEGER NOT NULL DEFAULT 1`);
     })().catch((err) => {
       nutritionEnsured = null;
       throw err;
@@ -82,6 +83,14 @@ export function ensureNutritionTable(): Promise<void> {
   }
   return nutritionEnsured;
 }
+
+/**
+ * Bump when ingredient parsing, gram conversion or match ranking changes in a
+ * way that would alter results. Stored rows below this are treated as absent
+ * and recalculated on next read — otherwise a fix only ever reaches recipes
+ * nobody had looked at yet, and the ones people actually use stay wrong.
+ */
+export const ALGO_VERSION = 2;
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
 
@@ -181,13 +190,14 @@ export async function calculateNutrition(
   await ensureNutritionTable();
   await query(
     `INSERT INTO recipe_nutrition
-       (recipe_id, servings, cal, protein, carbs, fat, confidence, matched_share, matched_count, total_count, breakdown, computed_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, now())
+       (recipe_id, servings, cal, protein, carbs, fat, confidence, matched_share, matched_count, total_count, breakdown, computed_at, algo_version)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, now(), $12)
      ON CONFLICT (recipe_id) DO UPDATE SET
        servings = $2, cal = $3, protein = $4, carbs = $5, fat = $6, confidence = $7,
-       matched_share = $8, matched_count = $9, total_count = $10, breakdown = $11, computed_at = now()`,
+       matched_share = $8, matched_count = $9, total_count = $10, breakdown = $11,
+       computed_at = now(), algo_version = $12`,
     [recipeId, servings, perServing.cal, perServing.protein, perServing.carbs, perServing.fat,
-     score.confidence, score.matchedShare, score.matchedCount, score.total, JSON.stringify(breakdown)],
+     score.confidence, score.matchedShare, score.matchedCount, score.total, JSON.stringify(breakdown), ALGO_VERSION],
   );
 
   return { nutrition: result };
@@ -210,7 +220,12 @@ interface NutritionRow {
 /** Previously calculated numbers for a recipe, if any. */
 export async function getStoredNutrition(recipeId: string): Promise<CalculatedNutrition | null> {
   await ensureNutritionTable();
-  const row = await queryOne<NutritionRow>(`SELECT * FROM recipe_nutrition WHERE recipe_id = $1`, [recipeId]);
+  // Rows from an older algorithm are treated as missing, so a parsing or
+  // ranking fix reaches recipes that were already calculated.
+  const row = await queryOne<NutritionRow>(
+    `SELECT * FROM recipe_nutrition WHERE recipe_id = $1 AND algo_version >= $2`,
+    [recipeId, ALGO_VERSION],
+  );
   if (!row) return null;
   return {
     source: 'usda',
@@ -253,11 +268,11 @@ export async function backfillPublicNutrition(
     `SELECT r.id, r.ingredients
        FROM recipes r
        LEFT JOIN recipe_nutrition n ON n.recipe_id = r.id
-      WHERE r.is_public = TRUE AND n.recipe_id IS NULL
+      WHERE r.is_public = TRUE AND (n.recipe_id IS NULL OR n.algo_version < $2)
         AND array_length(r.ingredients, 1) > 0
       ORDER BY COALESCE(r.shared_at, r.created_at) DESC
       LIMIT $1`,
-    [limit],
+    [limit, ALGO_VERSION],
   );
 
   let calculated = 0;

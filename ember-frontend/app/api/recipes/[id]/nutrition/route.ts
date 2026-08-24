@@ -1,8 +1,10 @@
+import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { route, requireUser, json, notFound, badRequest } from '@/lib/server/http';
 import { assertRateLimit } from '@/lib/server/services/rateLimit';
 import { getVisibleRecipe } from '@/lib/server/services/recipes';
 import { getStoredNutrition, calculateNutrition } from '@/lib/server/services/nutritionCalc';
+import { getPublicSlug } from '@/lib/server/services/sharing';
 import { config } from '@/lib/server/config';
 import type { NextRequest } from 'next/server';
 
@@ -11,6 +13,16 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 45;
 
 type Ctx = { params: { id: string } };
+
+/**
+ * The public recipe page is ISR-cached, so a freshly calculated figure would
+ * otherwise sit behind a stale render for up to an hour — on the page whose
+ * whole point is showing verified numbers.
+ */
+async function flushPublicPage(recipeId: string): Promise<void> {
+  const slug = await getPublicSlug(recipeId).catch(() => null);
+  if (slug) revalidatePath(`/r/${slug}`);
+}
 
 const parseId = (raw: string): string => {
   const id = z.string().uuid().safeParse(raw);
@@ -42,6 +54,7 @@ export const GET = route(async (req: NextRequest, { params }: Ctx) => {
   if (!allowed) return json({ nutrition: null, reason: 'unavailable', configured: config.fdcConfigured });
 
   const { nutrition, reason } = await calculateNutrition(id, recipe.ingredients ?? []);
+  if (nutrition) await flushPublicPage(id);
   return json({ nutrition, reason, configured: config.fdcConfigured });
 });
 
@@ -56,5 +69,6 @@ export const POST = route(async (req: NextRequest, { params }: Ctx) => {
   await assertRateLimit(`nutrition:${u.id}`, 30, 3600, 'Too many nutrition recalculations — try again later');
 
   const { nutrition, reason } = await calculateNutrition(id, recipe.ingredients ?? []);
+  if (nutrition) await flushPublicPage(id);
   return json({ nutrition, reason, configured: config.fdcConfigured });
 });

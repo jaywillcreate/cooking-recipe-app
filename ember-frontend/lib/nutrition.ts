@@ -94,7 +94,7 @@ const UNIT_ITEM_G: Record<string, number> = {
 };
 
 /** Things that add no meaningful energy — excluded without hurting confidence. */
-const NEGLIGIBLE = /\b(salt|pepper|water|ice|to taste|for (serving|garnish)|garnish|seasoning)\b/i;
+const NEGLIGIBLE = /\b(salt|pepper|water|ice|to taste|to serve|to finish|for (serving|garnish)|garnish|seasoning)\b/i;
 
 export const isNegligible = (name: string): boolean => NEGLIGIBLE.test(name);
 

@@ -1,11 +1,14 @@
 /**
  * Ranking checks for USDA ingredient matching — `npm run check:matching`.
  *
- * These fixtures are real FoodData Central search results, kept because the
- * failure they guard against is silent: FDC returns "Oil, corn, peanut, and
- * olive" for "olive oil" with the same relevance score as the actual olive
+ * The failure these guard against is silent: FDC returns "Oil, corn, peanut,
+ * and olive" for "olive oil" with the same relevance score as the actual olive
  * oil, so a regression here would attach the wrong composition to an
  * ingredient and still show a confidence badge over it.
+ *
+ * The "olive oil" and "onion" candidate sets are verbatim from live FoodData
+ * Central responses. The rest are written in USDA's house style to cover cases
+ * seen in production — they exercise the ranking, not the API.
  */
 import { rankAll, MIN_SCORE } from '../lib/fdcRank';
 
@@ -54,6 +57,16 @@ for (const c of cases) {
   console.log(`${ok ? 'PASS' : 'FAIL'}  "${c.term}"`);
   for (const r of ranked) console.log(`        ${r.score.toFixed(3)}  ${r.hit.description}${r.score < MIN_SCORE ? '   (below threshold — dropped)' : ''}`);
 }
+
+// Drinks are ordinary cooking ingredients. USDA files them under "Alcoholic
+// beverage, …", which an over-eager junk penalty used to reject outright.
+const wine = rankAll('red wine', [
+  { fdcId: 173190, description: 'Alcoholic beverage, wine, table, red', dataType: 'SR Legacy' },
+  { fdcId: 174844, description: 'Sauce, pasta, spaghetti/marinara, ready-to-serve', dataType: 'SR Legacy' },
+]);
+const winePass = wine[0]!.hit.fdcId === 173190 && wine[0]!.score >= MIN_SCORE;
+console.log(`${winePass ? 'PASS' : 'FAIL'}  "red wine" matches wine (${wine[0]!.score.toFixed(3)} — "${wine[0]!.hit.description}")`);
+if (!winePass) failures++;
 
 // Nothing plausible should sneak past the threshold.
 const junk = rankAll('pappardelle', [
