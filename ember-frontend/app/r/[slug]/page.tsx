@@ -8,6 +8,8 @@ import { deriveEquipment } from '@/lib/equipment';
 import { KitchenIcon } from '@/components/KitchenIcons';
 import { Wordmark } from '@/components/Wordmark';
 import { PublicRecipeActions } from '@/components/PublicRecipeActions';
+import { NutritionPanel } from '@/components/NutritionPanel';
+import { getStoredNutrition } from '@/lib/server/services/nutritionCalc';
 
 // Published recipes change rarely; cache the rendered page and let a re-share
 // or edit roll it over within the hour.
@@ -57,9 +59,13 @@ export default async function PublicRecipePage({ params }: Props) {
 
   const accent = accentFor(recipe.cuisine);
   const url = shareUrl(recipe.share_slug);
-  const nutrition = (recipe.nutrition ?? {}) as Record<string, string | number>;
+  const nutrition = (recipe.nutrition ?? {}) as { cal?: string | number; protein?: string | number; carbs?: string | number; fat?: string | number };
   const equipment = deriveEquipment(recipe.ingredients ?? [], recipe.steps ?? []);
   const hasRating = recipe.stars_count > 0 && recipe.stars_avg != null;
+  // Read-only here: a crawler or a stranger shouldn't trigger USDA lookups, so
+  // the public page shows a calculation only once the app has made one.
+  const calculated = await getStoredNutrition(recipe.id).catch(() => null);
+  const macros = calculated?.perServing ?? nutrition;
 
   // Structured data mirrors exactly what's rendered below — Google penalises
   // markup that claims more than the page shows.
@@ -84,14 +90,14 @@ export default async function PublicRecipePage({ params }: Props) {
       // No "Step 1:" prefix — Google wants the instruction text only.
       text,
     })),
-    nutrition: nutrition.cal
+    nutrition: macros.cal
       ? {
           '@type': 'NutritionInformation',
           servingSize: '1 serving',
-          calories: `${nutrition.cal} calories`,
-          proteinContent: `${nutrition.protein} g`,
-          carbohydrateContent: `${nutrition.carbs} g`,
-          fatContent: `${nutrition.fat} g`,
+          calories: `${macros.cal} calories`,
+          proteinContent: `${macros.protein} g`,
+          carbohydrateContent: `${macros.carbs} g`,
+          fatContent: `${macros.fat} g`,
         }
       : undefined,
     aggregateRating: hasRating
@@ -165,7 +171,7 @@ export default async function PublicRecipePage({ params }: Props) {
                 { k: 'Time', v: recipe.time_label },
                 { k: 'Skill', v: recipe.difficulty },
                 { k: 'Serves', v: '4' },
-                ...(nutrition.cal ? [{ k: 'Per serving', v: `${nutrition.cal} cal` }] : []),
+                ...(macros.cal ? [{ k: 'Per serving', v: `${macros.cal} cal` }] : []),
                 ...(hasRating ? [{ k: 'Rated', v: `★ ${recipe.stars_avg} · ${recipe.stars_count}` }] : []),
               ].map((f) => (
                 <div key={f.k} style={{ background: C.bg, borderRadius: 12, padding: '10px 14px', minWidth: 92 }}>
@@ -188,17 +194,13 @@ export default async function PublicRecipePage({ params }: Props) {
                     </li>
                   ))}
                 </ul>
-                {Boolean(nutrition.cal) && (
-                  <div style={{ marginTop: 24, padding: 16, background: C.bg, borderRadius: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted55, marginBottom: 10 }}>Per serving</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13, fontWeight: 600 }}>
-                      <div>{nutrition.cal} cal</div>
-                      <div>{nutrition.protein}g protein</div>
-                      <div>{nutrition.carbs}g carbs</div>
-                      <div>{nutrition.fat}g fat</div>
-                    </div>
-                    <div style={{ fontSize: 11, color: C.muted55, marginTop: 10, lineHeight: 1.5 }}>Estimated, per serving.</div>
-                  </div>
+                {Boolean(macros.cal) && (
+                  <NutritionPanel
+                    recipeId={recipe.id}
+                    estimate={{ cal: nutrition.cal ?? 0, protein: nutrition.protein ?? 0, carbs: nutrition.carbs ?? 0, fat: nutrition.fat ?? 0 }}
+                    initial={calculated}
+                    canCalculate={false}
+                  />
                 )}
               </div>
 

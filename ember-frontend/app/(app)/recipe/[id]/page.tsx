@@ -11,6 +11,7 @@ import { Feedback } from '@/components/Feedback';
 import { StarRating } from '@/components/StarRating';
 import { ShoppingList } from '@/components/ShoppingList';
 import { ShareRecipe } from '@/components/ShareRecipe';
+import { NutritionPanel } from '@/components/NutritionPanel';
 import { KitchenIcon } from '@/components/KitchenIcons';
 import { StepImage } from '@/components/StepImage';
 import { useGeneratedImage } from '@/lib/useGeneratedImage';
@@ -272,15 +273,7 @@ export default function RecipeDetailPage() {
                   </label>
                 ))}
               </div>
-              <div style={{ marginTop: 24, padding: 16, background: C.bg, borderRadius: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', color: C.muted55, marginBottom: 10 }}>Per serving</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13, fontWeight: 600 }}>
-                  <div>{n.cal} cal</div>
-                  <div>{n.protein}g protein</div>
-                  <div>{n.carbs}g carbs</div>
-                  <div>{n.fat}g fat</div>
-                </div>
-              </div>
+              <NutritionPanel recipeId={recipe.id} estimate={n} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>

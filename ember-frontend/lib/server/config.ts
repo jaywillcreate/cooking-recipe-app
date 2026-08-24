@@ -67,6 +67,15 @@ export const config = {
   pollinationsToken: process.env.POLLINATIONS_TOKEN,
   pollinationsReferrer: process.env.POLLINATIONS_REFERRER ?? 'tastyember.app',
 
+  // USDA FoodData Central — the source of truth for calculated recipe macros.
+  // Free key from https://fdc.nal.usda.gov/api-key-signup/. Without one we fall
+  // back to DEMO_KEY, which is throttled hard enough that calculation will
+  // often fail; the UI then shows the model's estimate, clearly labelled.
+  fdcApiKey: process.env.FDC_API_KEY ?? 'DEMO_KEY',
+  get fdcConfigured(): boolean {
+    return !!process.env.FDC_API_KEY;
+  },
+
   emailProvider: (process.env.EMAIL_PROVIDER ?? 'console') as 'resend' | 'brevo' | 'console',
   emailFrom: process.env.EMAIL_FROM ?? 'TastyEmber <hello@ember.app>',
   resendApiKey: process.env.RESEND_API_KEY,

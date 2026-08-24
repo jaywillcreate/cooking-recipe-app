@@ -325,3 +325,39 @@ ALTER TABLE recipes ADD COLUMN IF NOT EXISTS shared_at TIMESTAMPTZ;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_recipes_share_slug ON recipes(share_slug) WHERE share_slug IS NOT NULL;
 UPDATE recipes SET is_public = TRUE, shared_at = COALESCE(shared_at, created_at)
  WHERE owner_id IS NULL AND is_public = FALSE;
+
+-- Calculated nutrition (USDA FoodData Central).
+-- fdc_foods / fdc_matches cache the API so a recipe's ~10 lookups happen once;
+-- recipe_nutrition stores the computed per-serving figures plus the
+-- per-ingredient audit trail behind them. Mirrored at runtime by
+-- ensureFdcTables() and ensureNutritionTable().
+CREATE TABLE IF NOT EXISTS fdc_foods (
+  fdc_id      INTEGER PRIMARY KEY,
+  description TEXT NOT NULL,
+  data_type   TEXT NOT NULL,
+  per_100g    JSONB NOT NULL,
+  portions    JSONB NOT NULL DEFAULT '[]'::jsonb,
+  cached_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- fdc_id NULL records a genuine "no USDA match" so unmatchable terms aren't
+-- re-queried on every calculation.
+CREATE TABLE IF NOT EXISTS fdc_matches (
+  term       TEXT PRIMARY KEY,
+  fdc_id     INTEGER REFERENCES fdc_foods(fdc_id) ON DELETE SET NULL,
+  score      REAL NOT NULL DEFAULT 0,
+  matched_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS recipe_nutrition (
+  recipe_id     UUID PRIMARY KEY REFERENCES recipes(id) ON DELETE CASCADE,
+  servings      INTEGER NOT NULL,
+  cal           NUMERIC(8,1) NOT NULL,
+  protein       NUMERIC(8,1) NOT NULL,
+  carbs         NUMERIC(8,1) NOT NULL,
+  fat           NUMERIC(8,1) NOT NULL,
+  confidence    TEXT NOT NULL,
+  matched_share REAL NOT NULL,
+  matched_count INTEGER NOT NULL,
+  total_count   INTEGER NOT NULL,
+  breakdown     JSONB NOT NULL,
+  computed_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);

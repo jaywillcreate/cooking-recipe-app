@@ -140,6 +140,50 @@ export interface WeekListResponse {
   pantryTerms: string[];
 }
 
+/** One ingredient's contribution to the calculated totals. */
+export interface NutritionBreakdown {
+  line: string;
+  term: string;
+  matchedTo: string | null;
+  fdcId: number | null;
+  grams: number;
+  basis: 'weight' | 'portion' | 'density' | 'fallback' | 'none';
+  note: string;
+  cal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  negligible: boolean;
+}
+
+/** Per-serving macros computed from USDA food data rather than estimated. */
+export interface CalculatedNutrition {
+  source: 'usda';
+  servings: number;
+  perServing: { cal: number; protein: number; carbs: number; fat: number };
+  confidence: 'high' | 'medium' | 'low';
+  matchedShare: number;
+  matchedCount: number;
+  totalCount: number;
+  breakdown: NutritionBreakdown[];
+  computedAt: string;
+}
+
+/** Why no calculated figures came back — each reads differently to a cook. */
+export type NutritionGap = 'insufficient_match' | 'unavailable';
+
+export interface NutritionResponse {
+  nutrition: CalculatedNutrition | null;
+  reason?: NutritionGap;
+  /** False when the deployment has no USDA API key of its own. */
+  configured: boolean;
+}
+
+export const nutritionCalcApi = {
+  get: (recipeId: string) => api<NutritionResponse>(`/api/recipes/${recipeId}/nutrition`),
+  recalculate: (recipeId: string) => api<NutritionResponse>(`/api/recipes/${recipeId}/nutrition`, { method: 'POST' }),
+};
+
 export interface ShareState {
   isPublic: boolean;
   slug: string | null;
