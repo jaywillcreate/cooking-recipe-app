@@ -229,3 +229,49 @@ export async function getStoredNutrition(recipeId: string): Promise<CalculatedNu
     computedAt: row.computed_at.toISOString(),
   };
 }
+
+/**
+ * Calculate nutrition for published recipes that have none yet.
+ *
+ * The in-app view computes on demand and publishing computes on share, but
+ * neither reaches recipes that were already public before those paths existed
+ * — including the seed catalogue, which is exactly what search engines see.
+ * Without this they would advertise the model's estimate indefinitely.
+ *
+ * Bounded twice over: by recipe count and by a wall-clock budget, since the
+ * caller is a cron function with a hard ceiling and each recipe costs roughly
+ * one USDA lookup per ingredient.
+ */
+export async function backfillPublicNutrition(
+  limit = 15,
+  budgetMs = 45_000,
+): Promise<{ attempted: number; calculated: number; skipped: number }> {
+  await ensureNutritionTable();
+  const started = Date.now();
+
+  const rows = await query<{ id: string; ingredients: string[] }>(
+    `SELECT r.id, r.ingredients
+       FROM recipes r
+       LEFT JOIN recipe_nutrition n ON n.recipe_id = r.id
+      WHERE r.is_public = TRUE AND n.recipe_id IS NULL
+        AND array_length(r.ingredients, 1) > 0
+      ORDER BY COALESCE(r.shared_at, r.created_at) DESC
+      LIMIT $1`,
+    [limit],
+  );
+
+  let calculated = 0;
+  let attempted = 0;
+  for (const row of rows) {
+    if (Date.now() - started > budgetMs) break;
+    attempted++;
+    try {
+      const { nutrition } = await calculateNutrition(row.id, row.ingredients);
+      if (nutrition) calculated++;
+    } catch (err) {
+      logger.warn({ err: String(err), recipeId: row.id }, 'Nutrition backfill failed for recipe');
+    }
+  }
+
+  return { attempted, calculated, skipped: rows.length - attempted };
+}
