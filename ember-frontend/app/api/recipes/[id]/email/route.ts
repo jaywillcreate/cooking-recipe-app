@@ -53,7 +53,7 @@ export const POST = route(async (req: NextRequest, ctx: { params: { id: string }
     steps: (r.steps as string[]) ?? [],
     image: (r.photo as string | null) ?? placeholderImage(String(r.title), String(r.cuisine), recipeId.data),
   };
-  const viewUrl = `${config.appOrigin}/recipe/${recipeId.data}`;
+  const viewUrl = `${config.publicOrigin}/recipe/${recipeId.data}`;
   const mail = renderRecipeEmail(recipe, sender?.name ?? '', note, viewUrl);
 
   let sent = 0;

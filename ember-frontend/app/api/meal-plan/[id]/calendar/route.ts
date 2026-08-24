@@ -33,7 +33,7 @@ export const POST = route(async (req: NextRequest, ctx: { params: { id: string }
 
   const description = [
     entry.notes,
-    entry.recipeId ? `Recipe: ${config.appOrigin}/recipe/${entry.recipeId}` : '',
+    entry.recipeId ? `Recipe: ${config.publicOrigin}/recipe/${entry.recipeId}` : '',
     'Planned with TastyEmber 🍳',
   ]
     .filter(Boolean)

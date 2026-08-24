@@ -15,6 +15,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/api/', '/admin', '/admin/', '/discover', '/create', '/daily', '/cookbook', '/profile', '/recipe/'],
       },
     ],
-    sitemap: `${config.appOrigin}/sitemap.xml`,
+    sitemap: `${config.publicOrigin}/sitemap.xml`,
   };
 }

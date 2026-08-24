@@ -25,7 +25,7 @@ const pacifico = Pacifico({
 
 export const metadata: Metadata = {
   // Resolves relative OG/canonical URLs on the public share pages.
-  metadataBase: new URL(config.appOrigin),
+  metadataBase: new URL(config.publicOrigin),
   title: 'TastyEmber — AI Recipe Creator',
   description: 'Discover, create, and collect personalized recipes. A new recipe invented for you every day.',
 };

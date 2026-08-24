@@ -52,7 +52,7 @@ function slugFor(id: string, title: string): string {
   return `${base}-${id.slice(0, 8)}`;
 }
 
-export const shareUrl = (slug: string): string => `${config.appOrigin}/r/${slug}`;
+export const shareUrl = (slug: string): string => `${config.publicOrigin}/r/${slug}`;
 
 export interface ShareState {
   isPublic: boolean;

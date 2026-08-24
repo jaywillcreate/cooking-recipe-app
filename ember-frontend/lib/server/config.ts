@@ -20,6 +20,19 @@ export const config = {
     return process.env.APP_ORIGIN || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
   },
 
+  /**
+   * The domain the public sees — canonical URLs, share links, OG tags, the
+   * sitemap. Deliberately separate from appOrigin: OAuth redirect URIs have to
+   * match what's registered with Google, so appOrigin can't be repointed at a
+   * custom domain without re-registering, but canonical and share URLs must
+   * name the real domain or search engines index the deployment URL instead.
+   * Set PUBLIC_ORIGIN to the customer-facing domain.
+   */
+  get publicOrigin(): string {
+    const fromVercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    return process.env.PUBLIC_ORIGIN || (fromVercel ? `https://${fromVercel}` : this.appOrigin);
+  },
+
   get databaseUrl(): string {
     return req('DATABASE_URL');
   },

@@ -19,7 +19,7 @@ type Props = { params: { slug: string } };
 
 /** On-page hero (600×400) vs the wide 1200×630 frame social crawlers crop to. */
 const imageUrl = (r: PublicRecipe, og = false): string =>
-  r.photo_url ?? `${config.appOrigin}/api/img/recipe/${r.id}${og ? '?og=1' : ''}`;
+  r.photo_url ?? `${config.publicOrigin}/api/img/recipe/${r.id}${og ? '?og=1' : ''}`;
 
 /** ISO 8601 duration for structured data — Google rejects "30 min". */
 const isoDuration = (mins: number): string =>

@@ -102,7 +102,7 @@ export async function generateDailyFor(
 
   if (opts.sendMail && profile.email_daily && profile.email) {
     try {
-      const viewUrl = `${config.appOrigin}/recipe/${recipeRow.id}`;
+      const viewUrl = `${config.publicOrigin}/recipe/${recipeRow.id}`;
       const mail = renderDailyEmail(profile.name, full, viewUrl);
       await sendEmail({ to: profile.email, ...mail });
       await query(`UPDATE daily_recipes SET emailed_at = now() WHERE user_id = $1 AND for_date = $2`, [userId, forDate]);

@@ -3,6 +3,7 @@ import { query, queryOne } from '../db';
 import { config } from '../config';
 import { logger } from '../logger';
 import type { FoodPortion } from '@/lib/nutrition';
+import { rankAll, MIN_SCORE, type SearchHit } from '@/lib/fdcRank';
 
 /**
  * USDA FoodData Central client.
@@ -90,49 +91,6 @@ async function fdcGet<T>(path: string, params: Record<string, string>): Promise<
     clearTimeout(timer);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Ranking
-// ---------------------------------------------------------------------------
-
-interface SearchHit {
-  fdcId: number;
-  description: string;
-  dataType: string;
-}
-
-const STOPWORDS = new Set(['fresh', 'raw', 'whole', 'large', 'medium', 'small', 'of', 'and', 'the', 'in', 'or']);
-
-const tokens = (s: string): string[] =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter((t) => t.length > 2 && !STOPWORDS.has(t));
-
-/**
- * Score a candidate against the search term. Rewards covering the term's words,
- * penalises descriptions that pad in unrelated foods ("corn, peanut, and
- * olive"), and prefers the datasets with complete, generic macro data.
- */
-function rank(term: string, hit: SearchHit): number {
-  const want = tokens(term);
-  const got = tokens(hit.description);
-  if (want.length === 0 || got.length === 0) return 0;
-
-  const covered = want.filter((w) => got.some((g) => g === w || g.startsWith(w) || w.startsWith(g))).length;
-  const coverage = covered / want.length;
-  // Extra words dilute: "Oil, olive" beats "Oil, corn, peanut, and olive".
-  const precision = covered / got.length;
-  const typeBonus = hit.dataType === 'SR Legacy' ? 0.12 : hit.dataType === 'Foundation' ? 0.08 : 0;
-  // "Beverages, ..." / "Babyfood, ..." are rarely what a recipe means.
-  const penalty = /\b(babyfood|infant formula|beverage|restaurant|fast food|candies)\b/i.test(hit.description) ? 0.25 : 0;
-
-  return coverage * 0.7 + precision * 0.3 + typeBonus - penalty;
-}
-
-/** Below this the match isn't trustworthy enough to put numbers behind. */
-const MIN_SCORE = 0.5;
 
 // ---------------------------------------------------------------------------
 // Lookup
@@ -231,9 +189,7 @@ export async function lookupIngredient(name: string): Promise<LookupResult> {
   // so the next attempt (or a working API key) can still find it.
   if (!res) return { food: null, apiFailed: true };
 
-  const ranked = (res.foods ?? [])
-    .map((hit) => ({ hit, score: rank(term, hit) }))
-    .sort((a, b) => b.score - a.score);
+  const ranked = rankAll(term, res.foods ?? []);
 
   const best = ranked[0];
   if (!best || best.score < MIN_SCORE) {

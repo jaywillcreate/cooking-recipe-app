@@ -2,7 +2,7 @@
   "name": "ember",
   "version": "1.0.0",
   "private": true,
-  "description": "Ember — AI recipe web app (Next.js full-stack, deploys to Vercel)",
+  "description": "Ember \u2014 AI recipe web app (Next.js full-stack, deploys to Vercel)",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
@@ -12,7 +12,8 @@
     "migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed.ts",
     "create-admin": "tsx scripts/createAdmin.ts",
-    "reset-password": "tsx scripts/resetPassword.ts"
+    "reset-password": "tsx scripts/resetPassword.ts",
+    "check:matching": "tsx scripts/checkNutritionMatching.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
