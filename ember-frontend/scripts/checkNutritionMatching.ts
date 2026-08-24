@@ -12,6 +12,7 @@
  */
 import { rankAll, MIN_SCORE } from '../lib/fdcRank';
 import { usdaSearchTerm } from '../lib/ingredientSynonyms';
+import { toGrams } from '../lib/nutrition';
 
 /**
  * Candidates recorded from real FoodData Central responses (see the curl
@@ -77,6 +78,42 @@ const junk = rankAll('pappardelle', [
 const junkPassed = junk.filter((r) => r.score >= MIN_SCORE);
 console.log(`${junkPassed.length === 0 ? 'PASS' : 'FAIL'}  unredirected "pappardelle" matches nothing on words alone (best ${junk[0]!.score.toFixed(3)} — "${junk[0]!.hit.description}")`);
 if (junkPassed.length) failures++;
+
+// Processing words change what a food is. These all outranked the real food
+// in production, because a terse description scores well on precision.
+const tomato = rankAll('tomato', [
+  { fdcId: 170457, description: 'Tomato powder', dataType: 'SR Legacy' },
+  { fdcId: 170393, description: 'Tomatoes, red, ripe, raw, year round average', dataType: 'SR Legacy' },
+]);
+const tomatoPass = tomato[0]!.hit.fdcId === 170393;
+console.log(`${tomatoPass ? 'PASS' : 'FAIL'}  "tomato" prefers the fruit over powder (${tomato.map((r) => r.hit.description.split(',')[0] + ' ' + r.score.toFixed(2)).join(' | ')})`);
+if (!tomatoPass) failures++;
+
+const redWine = rankAll('red wine', [
+  { fdcId: 171413, description: 'Vinegar, red wine', dataType: 'SR Legacy' },
+  { fdcId: 173190, description: 'Alcoholic beverage, wine, table, red', dataType: 'SR Legacy' },
+]);
+const redWinePass = redWine[0]!.hit.fdcId === 173190;
+console.log(`${redWinePass ? 'PASS' : 'FAIL'}  "red wine" prefers wine over vinegar (${redWine.map((r) => r.hit.description.split(',')[0] + ' ' + r.score.toFixed(2)).join(' | ')})`);
+if (!redWinePass) failures++;
+
+// A whole onion is not a slice of one, even though USDA calls both "medium".
+const onionPortions = [
+  { modifier: 'cup, chopped', unit: 'undetermined', amount: 1, gramWeight: 160 },
+  { modifier: 'slice, medium (1/8" thick)', unit: 'undetermined', amount: 1, gramWeight: 14 },
+  { modifier: 'medium (2-1/2" dia)', unit: 'undetermined', amount: 1, gramWeight: 110 },
+  { modifier: 'large', unit: 'undetermined', amount: 1, gramWeight: 150 },
+];
+const onionG = toGrams(1, null, 'onion', onionPortions);
+const onionPass = Math.round(onionG.grams) === 110;
+console.log(`${onionPass ? 'PASS' : 'FAIL'}  "1 onion" weighs a whole onion, not a slice (${Math.round(onionG.grams)} g — ${onionG.note})`);
+if (!onionPass) failures++;
+
+// USDA's generic cuts are boneless, so bone-in weight has to be discounted.
+const boneIn = toGrams(2, 'lb', 'short rib', [], '2 lb bone-in short ribs');
+const bonePass = Math.round(boneIn.grams) === 635;
+console.log(`${bonePass ? 'PASS' : 'FAIL'}  bone-in weight counts edible meat only (${Math.round(boneIn.grams)} g — ${boneIn.note})`);
+if (!bonePass) failures++;
 
 // Search-term redirects: USDA holds the food under another name.
 const redirects: [string, string][] = [

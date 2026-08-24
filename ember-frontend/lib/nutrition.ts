@@ -140,8 +140,12 @@ function matchPortion(portions: FoodPortion[], unit: string | null): FoodPortion
     if (direct) return direct;
     return null;
   }
-  // No unit at all: the recipe is counting whole items.
-  const whole = portions.find((p) => /\b(medium|whole|each|large|small)\b/i.test(p.modifier));
+  // No unit at all: the recipe is counting whole items ("1 onion"). USDA lists
+  // sub-portions alongside whole ones and several are *also* sized — "slice,
+  // medium (1/8\" thick)" contains "medium" — so a naive size match picks a
+  // 14 g slice for a 110 g onion. Anything portioned smaller is excluded first.
+  const notWhole = /\b(slice|sliced|chopped|diced|ring|cup|tbsp|tsp|spoon|piece|half|strip|shredded|grated|mashed|cooked)\b/i;
+  const whole = portions.find((p) => /\b(medium|whole|each|large|small)\b/i.test(p.modifier) && !notWhole.test(p.modifier));
   return whole ?? null;
 }
 
@@ -156,20 +160,39 @@ const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * portions and falling back to generic tables. Returns `none` when there's no
  * quantity to work from at all.
  */
+/**
+ * Share of a bone-in cut that is actually edible. USDA's generic records are
+ * boneless, so weighing "2 lb bone-in short ribs" as 2 lb of meat overstates
+ * it by roughly a third.
+ */
+const BONE_IN_YIELD = 0.7;
+
 export function toGrams(
   qty: number | null,
   unit: string | null,
   name: string,
   portions: FoodPortion[] = [],
+  raw = '',
 ): GramResult {
   if (qty == null || qty <= 0) return { grams: 0, basis: 'none', note: 'no quantity given' };
+
+  // The bone comes off the search term so USDA can match the cut, but it still
+  // has to come off the weight.
+  const boneIn = /\bbone[- ]in\b|\bon the bone\b/i.test(raw);
 
   const u = unit?.toLowerCase() ?? null;
 
   // 1. Already a weight — nothing to guess.
   if (u && WEIGHT_G[u]) {
-    const grams = qty * WEIGHT_G[u]!;
-    return { grams, basis: 'weight', note: `${trim(qty)} ${u} → ${trim(grams)} g` };
+    const gross = qty * WEIGHT_G[u]!;
+    const grams = boneIn ? gross * BONE_IN_YIELD : gross;
+    return {
+      grams,
+      basis: boneIn ? 'fallback' : 'weight',
+      note: boneIn
+        ? `${trim(qty)} ${u} bone-in → ${trim(grams)} g edible (≈${Math.round(BONE_IN_YIELD * 100)}%)`
+        : `${trim(qty)} ${u} → ${trim(grams)} g`,
+    };
   }
 
   // 2. A volume — convert to ml, then find a density.

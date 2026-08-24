@@ -90,7 +90,7 @@ export function ensureNutritionTable(): Promise<void> {
  * and recalculated on next read — otherwise a fix only ever reaches recipes
  * nobody had looked at yet, and the ones people actually use stay wrong.
  */
-export const ALGO_VERSION = 2;
+export const ALGO_VERSION = 3;
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
 
@@ -126,7 +126,7 @@ export async function calculateNutrition(
 
     const { food, apiFailed: failed } = await lookupIngredient(parsed.name);
     if (failed) apiFailed = true;
-    const g = toGrams(parsed.qty, parsed.unit, parsed.name, food?.portions ?? []);
+    const g = toGrams(parsed.qty, parsed.unit, parsed.name, food?.portions ?? [], line);
     const factor = g.grams / 100;
 
     breakdown.push({
