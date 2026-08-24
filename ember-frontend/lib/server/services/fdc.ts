@@ -4,6 +4,7 @@ import { config } from '../config';
 import { logger } from '../logger';
 import type { FoodPortion } from '@/lib/nutrition';
 import { rankAll, MIN_SCORE, type SearchHit } from '@/lib/fdcRank';
+import { usdaSearchTerm } from '@/lib/ingredientSynonyms';
 
 /**
  * USDA FoodData Central client.
@@ -193,8 +194,11 @@ export async function lookupIngredient(name: string): Promise<LookupResult> {
     return { food: cached.food, apiFailed: !cached.food && cached.reason === 'failed' };
   }
 
+  // USDA indexes foods, not the names cooks use — "pappardelle" has no record
+  // but "pasta, dry" does. The cache stays keyed on what the recipe said.
+  const searchTerm = usdaSearchTerm(term);
   const res = await fdcGet<SearchResponse>('/foods/search', {
-    query: term,
+    query: searchTerm,
     // These two datasets are the generic, complete ones. Branded foods are a
     // sea of near-duplicates and Survey entries are prepared dishes.
     dataType: 'SR Legacy,Foundation',
@@ -204,7 +208,7 @@ export async function lookupIngredient(name: string): Promise<LookupResult> {
   // so the next attempt (or a working API key) can still find it.
   if (!res) return { food: null, apiFailed: true };
 
-  const ranked = rankAll(term, res.foods ?? []);
+  const ranked = rankAll(searchTerm, res.foods ?? []);
 
   const best = ranked[0];
   if (!best || best.score < MIN_SCORE) {

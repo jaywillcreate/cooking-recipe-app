@@ -11,6 +11,7 @@
  * seen in production — they exercise the ranking, not the API.
  */
 import { rankAll, MIN_SCORE } from '../lib/fdcRank';
+import { usdaSearchTerm } from '../lib/ingredientSynonyms';
 
 /**
  * Candidates recorded from real FoodData Central responses (see the curl
@@ -74,8 +75,35 @@ const junk = rankAll('pappardelle', [
   { fdcId: 2, description: 'Beverages, tea, black, brewed', dataType: 'SR Legacy' },
 ]);
 const junkPassed = junk.filter((r) => r.score >= MIN_SCORE);
-console.log(`${junkPassed.length === 0 ? 'PASS' : 'FAIL'}  "pappardelle" correctly matches nothing (best ${junk[0]!.score.toFixed(3)} — "${junk[0]!.hit.description}")`);
+console.log(`${junkPassed.length === 0 ? 'PASS' : 'FAIL'}  unredirected "pappardelle" matches nothing on words alone (best ${junk[0]!.score.toFixed(3)} — "${junk[0]!.hit.description}")`);
 if (junkPassed.length) failures++;
 
-console.log(failures === 0 ? '\nAll ranking checks passed.' : `\n${failures} FAILED`);
+// Search-term redirects: USDA holds the food under another name.
+const redirects: [string, string][] = [
+  ['pappardelle', 'pasta, dry, enriched'],
+  ['orzo', 'pasta, dry, enriched'],
+  ['fresh tagliatelle', 'pasta, dry, enriched'],
+  ['courgette', 'zucchini'],
+  ['double cream', 'cream, heavy'],
+  ['onion', 'onion'], // untouched — no redirect should apply
+  ['short rib', 'short rib'],
+];
+for (const [input, want] of redirects) {
+  const got = usdaSearchTerm(input);
+  const ok = got === want;
+  if (!ok) failures++;
+  console.log(`${ok ? 'PASS' : 'FAIL'}  "${input}" -> "${got}"${ok ? '' : ` (wanted "${want}")`}`);
+}
+
+// A redirect must still be able to fail: pasta is a real food, but the
+// redirected term has to actually beat the threshold to be used.
+const pasta = rankAll(usdaSearchTerm('pappardelle'), [
+  { fdcId: 168927, description: 'Pasta, dry, enriched', dataType: 'SR Legacy' },
+  { fdcId: 169737, description: 'Beverages, tea, black, brewed', dataType: 'SR Legacy' },
+]);
+const pastaPass = pasta[0]!.hit.fdcId === 168927 && pasta[0]!.score >= MIN_SCORE;
+console.log(`${pastaPass ? 'PASS' : 'FAIL'}  redirected "pappardelle" now matches pasta (${pasta[0]!.score.toFixed(3)})`);
+if (!pastaPass) failures++;
+
+console.log(failures === 0 ? '\nAll checks passed.' : `\n${failures} FAILED`);
 process.exit(failures === 0 ? 0 : 1);
