@@ -108,18 +108,27 @@ interface FoodDetailResponse {
   }[];
 }
 
+/**
+ * A detail fetch has three outcomes, and conflating them is how a food that
+ * simply has no calories on file gets mistaken for the API being down.
+ */
+type FetchOutcome =
+  | { food: FdcFood }
+  | { food: null; reason: 'no-macros' } // record exists but carries no energy
+  | { food: null; reason: 'failed' }; // request never landed
+
 /** Fetch + cache the full record (macros per 100 g and portion weights). */
-async function fetchFood(fdcId: number): Promise<FdcFood | null> {
+async function fetchFood(fdcId: number): Promise<FetchOutcome> {
   const cached = await queryOne<{ fdc_id: number; description: string; data_type: string; per_100g: FdcFood['per100g']; portions: FoodPortion[] }>(
     `SELECT * FROM fdc_foods WHERE fdc_id = $1`,
     [fdcId],
   );
   if (cached) {
-    return { fdcId: cached.fdc_id, description: cached.description, dataType: cached.data_type, per100g: cached.per_100g, portions: cached.portions };
+    return { food: { fdcId: cached.fdc_id, description: cached.description, dataType: cached.data_type, per100g: cached.per_100g, portions: cached.portions } };
   }
 
   const detail = await fdcGet<FoodDetailResponse>(`/food/${fdcId}`, { format: 'full' });
-  if (!detail) return null;
+  if (!detail) return { food: null, reason: 'failed' };
 
   const amountOf = (id: number): number => {
     const row = (detail.foodNutrients ?? []).find((n) => n.nutrient?.id === id);
@@ -131,10 +140,12 @@ async function fetchFood(fdcId: number): Promise<FdcFood | null> {
     carbs: amountOf(NUTRIENT.carbs),
     fat: amountOf(NUTRIENT.fat),
   };
-  // Some Foundation records carry only analytical detail (fatty acid profiles,
-  // no Energy). Without calories the food is useless to us — treat as no match
-  // so the caller can fall back rather than silently under-counting.
-  if (per100g.cal === 0 && per100g.protein === 0 && per100g.carbs === 0 && per100g.fat === 0) return null;
+  // Foundation records often carry only analytical detail (fatty acid
+  // profiles, no Energy) — "Oil, olive, extra virgin" is one. Useless to us,
+  // but the record is real, so this is a miss to move past, not an outage.
+  if (per100g.cal === 0 && per100g.protein === 0 && per100g.carbs === 0 && per100g.fat === 0) {
+    return { food: null, reason: 'no-macros' };
+  }
 
   const portions: FoodPortion[] = (detail.foodPortions ?? [])
     .filter((p) => (p.gramWeight ?? 0) > 0)
@@ -151,7 +162,7 @@ async function fetchFood(fdcId: number): Promise<FdcFood | null> {
      VALUES ($1,$2,$3,$4,$5) ON CONFLICT (fdc_id) DO NOTHING`,
     [fdcId, food.description, food.dataType, JSON.stringify(per100g), JSON.stringify(portions)],
   );
-  return food;
+  return { food };
 }
 
 interface SearchResponse {
@@ -176,7 +187,11 @@ export async function lookupIngredient(name: string): Promise<LookupResult> {
   await ensureFdcTables();
 
   const known = await queryOne<{ fdc_id: number | null }>(`SELECT fdc_id FROM fdc_matches WHERE term = $1`, [term]);
-  if (known) return { food: known.fdc_id ? await fetchFood(known.fdc_id) : null, apiFailed: false };
+  if (known) {
+    if (!known.fdc_id) return { food: null, apiFailed: false };
+    const cached = await fetchFood(known.fdc_id);
+    return { food: cached.food, apiFailed: !cached.food && cached.reason === 'failed' };
+  }
 
   const res = await fdcGet<SearchResponse>('/foods/search', {
     query: term,
@@ -201,10 +216,15 @@ export async function lookupIngredient(name: string): Promise<LookupResult> {
     return { food: null, apiFailed: false };
   }
 
-  // Walk down the ranking until one actually has macros on it.
-  for (const candidate of ranked.slice(0, 3)) {
+  // Walk the ranking until one actually has macros on it. Five deep, not
+  // three: whole datasets skew towards records without energy, so a shallow
+  // walk gives up on foods that are sitting there a little further down.
+  let anyFailed = false;
+  for (const candidate of ranked.slice(0, 5)) {
     if (candidate.score < MIN_SCORE) break;
-    const food = await fetchFood(candidate.hit.fdcId);
+    const outcome = await fetchFood(candidate.hit.fdcId);
+    if (!outcome.food && outcome.reason === 'failed') anyFailed = true;
+    const food = outcome.food;
     if (food) {
       await query(
         `INSERT INTO fdc_matches (term, fdc_id, score) VALUES ($1,$2,$3)
@@ -214,8 +234,15 @@ export async function lookupIngredient(name: string): Promise<LookupResult> {
       return { food, apiFailed: false };
     }
   }
-  // The search worked but every candidate's detail call came back empty. Three
-  // good matches all lacking macros is far less likely than the API faltering
-  // mid-sequence, so report it as an outage rather than a clean miss.
-  return { food: null, apiFailed: true };
+  // Every candidate was exhausted. If any request actually failed, don't cache
+  // the miss — the answer might differ next time. If they all simply had no
+  // macros on file, that's a real miss and worth remembering.
+  if (!anyFailed) {
+    await query(
+      `INSERT INTO fdc_matches (term, fdc_id, score) VALUES ($1, NULL, $2)
+       ON CONFLICT (term) DO UPDATE SET fdc_id = NULL, score = $2, matched_at = now()`,
+      [term, ranked[0]?.score ?? 0],
+    );
+  }
+  return { food: null, apiFailed: anyFailed };
 }
