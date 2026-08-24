@@ -10,6 +10,13 @@ function req(name: string): string {
   return v;
 }
 
+/**
+ * The customer-facing domain, used when the platform can't tell us. Checked in
+ * rather than left to configuration because a wrong canonical URL is silent and
+ * costly: it points search engines at the deployment host instead of here.
+ */
+const PRODUCTION_DOMAIN = 'https://tastyember.com';
+
 export const config = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   isProd: process.env.NODE_ENV === 'production',
@@ -24,13 +31,24 @@ export const config = {
    * The domain the public sees — canonical URLs, share links, OG tags, the
    * sitemap. Deliberately separate from appOrigin: OAuth redirect URIs have to
    * match what's registered with Google, so appOrigin can't be repointed at a
-   * custom domain without re-registering, but canonical and share URLs must
+   * custom domain without re-registering, while canonical and share URLs must
    * name the real domain or search engines index the deployment URL instead.
-   * Set PUBLIC_ORIGIN to the customer-facing domain.
+   *
+   * Resolution order, each step a fallback for the one before:
+   *   1. PUBLIC_ORIGIN — explicit, wins over everything.
+   *   2. VERCEL_PROJECT_PRODUCTION_URL — Vercel sets this to the shortest
+   *      production custom domain (so, the real domain). Blank only when
+   *      "Enable access to System Environment Variables" is off.
+   *   3. PRODUCTION_DOMAIN — a checked-in default so a deployment can never
+   *      fall back to advertising its *.vercel.app URL as canonical.
+   *   4. appOrigin — local development, where that is localhost.
    */
   get publicOrigin(): string {
-    const fromVercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-    return process.env.PUBLIC_ORIGIN || (fromVercel ? `https://${fromVercel}` : this.appOrigin);
+    if (process.env.PUBLIC_ORIGIN) return process.env.PUBLIC_ORIGIN;
+    const vercelDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    if (vercelDomain) return `https://${vercelDomain}`;
+    if (process.env.VERCEL) return PRODUCTION_DOMAIN;
+    return this.appOrigin;
   },
 
   get databaseUrl(): string {
